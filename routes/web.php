@@ -6,6 +6,7 @@ use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\MessageController;
+use App\Http\Controllers\DocumentController;
 
 Route::get('/', function () {
     return view('welcome');
@@ -47,5 +48,16 @@ Route::get('/conversations/{conversation}', [MessageController::class, 'index'])
     ->name('messages.index');
 Route::post('/conversations/{conversation}/messages', [MessageController::class, 'store'])
     ->name('messages.store');
+
+Route::middleware('auth')->group(function () {
+
+    Route::get('/documents', [DocumentController::class, 'index'])
+        ->name('documents.index');
+    Route::post('/documents', [DocumentController::class, 'store'])
+        ->name('documents.store');
+    Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])
+    ->name('documents.destroy');
+
+});
 
 require __DIR__.'/auth.php';
