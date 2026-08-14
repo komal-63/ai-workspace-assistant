@@ -6,6 +6,11 @@ use App\Models\Document;
 
 class DocumentChunkService
 {
+    public function __construct(
+        private EmbeddingService $embeddingService
+    ) {
+    }
+
     public function createChunks(Document $document): void
     {
         $content = trim($document->content);
@@ -14,10 +19,20 @@ class DocumentChunkService
 
         foreach ($chunks as $index => $chunk) {
 
-            $document->chunks()->create([
+            $chunk = trim($chunk);
+
+            if ($chunk === '') {
+                continue;
+            }
+
+            $documentChunk = $document->chunks()->create([
                 'chunk_index' => $index,
-                'content' => trim($chunk),
+                'content' => $chunk,
             ]);
+
+            $vector = $this->embeddingService->generate($chunk);
+
+            // Qdrant insertion yahan next step mein karenge.
         }
     }
 }
