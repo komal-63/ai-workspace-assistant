@@ -5,12 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\Conversation;
 use Illuminate\Http\Request;
 use App\Services\AIService;
+use App\Services\EmbeddingService;
+use App\Services\QdrantService;
 
 class MessageController extends Controller
 {
-    public function __construct(private AIService $aiService) 
-    {
-        
+    public function __construct(
+        private AIService $aiService,
+        private EmbeddingService $embeddingService,
+        private QdrantService $qdrantService
+    ) {
     }
 
     public function index(Conversation $conversation)
@@ -43,6 +47,16 @@ class MessageController extends Controller
             'content' => $request->content,
         ]);
 
+        $question = $request->content;
+
+        $questionVector = $this->embeddingService->generate($question);
+
+        $context = $this->qdrantService->search(
+            $questionVector,
+            auth()->id(),
+            5
+        );
+
         $messages = $conversation->messages()
             ->latest()
             ->take(20)
@@ -62,8 +76,10 @@ class MessageController extends Controller
                 'content' => "Conversation summary:\n" . $conversation->summary,
             ]);
         }
-        $response = $this->aiService->generateResponse($messages);
-
+       $response = $this->aiService->generateAnswer(
+            $question,
+            $context
+        );
         $conversation->messages()->create([
             'role' => 'assistant',
             'content' => $response,

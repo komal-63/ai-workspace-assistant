@@ -7,7 +7,8 @@ use App\Models\Document;
 class DocumentChunkService
 {
     public function __construct(
-        private EmbeddingService $embeddingService
+        private EmbeddingService $embeddingService,
+        private QdrantService $qdrantService
     ) {
     }
 
@@ -32,7 +33,16 @@ class DocumentChunkService
 
             $vector = $this->embeddingService->generate($chunk);
 
-            // Qdrant insertion yahan next step mein karenge.
+            $this->qdrantService->store(
+                $documentChunk->id,
+                $vector,
+                [
+                    'user_id' => $document->user_id,
+                    'document_id' => $document->id,
+                    'chunk_id' => $documentChunk->id,
+                    'content' => $chunk,
+                ]
+            );
         }
     }
 }

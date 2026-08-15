@@ -7,6 +7,9 @@ use App\Http\Controllers\AdminController;
 use App\Http\Controllers\ConversationController;
 use App\Http\Controllers\MessageController;
 use App\Http\Controllers\DocumentController;
+use App\Services\EmbeddingService;
+use App\Services\QdrantService;
+use App\Services\AIService;
 
 Route::get('/', function () {
     return view('welcome');
@@ -58,6 +61,80 @@ Route::middleware('auth')->group(function () {
     Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])
     ->name('documents.destroy');
 
+});
+
+Route::get('/test-embedding', function (EmbeddingService $embeddingService) {
+    $vector = $embeddingService->generate(
+        'Laravel Sanctum is used for API authentication.'
+    );
+
+    return [
+        'dimensions' => count($vector),
+        'first_five_values' => array_slice($vector, 0, 5),
+    ];
+});
+
+Route::get('/test-qdrant', function (
+    EmbeddingService $embeddingService,
+    QdrantService $qdrantService
+) {
+    $text = 'Laravel Sanctum is used for API authentication.';
+
+    $vector = $embeddingService->generate($text);
+
+    $qdrantService->store(
+        chunkId: 999,
+        vector: $vector,
+        payload: [
+            'document_id' => 1,
+            'content' => $text,
+        ]
+    );
+
+    return [
+        'message' => 'Vector stored successfully',
+        'dimensions' => count($vector),
+    ];
+});
+
+Route::get('/test-search', function (
+    EmbeddingService $embeddingService,
+    QdrantService $qdrantService
+) {
+    $question = 'How does Laravel authentication work?';
+
+    $vector = $embeddingService->generate($question);
+
+    $results = $qdrantService->search($vector, 3);
+
+    return [
+        'question' => $question,
+        'results' => $results,
+    ];
+});
+
+
+Route::get('/test-rag', function (
+    EmbeddingService $embeddingService,
+    QdrantService $qdrantService,
+    AIService $aiService
+) {
+    $question = 'How does Laravel authentication work?';
+
+    // 1. Question → embedding
+    $vector = $embeddingService->generate($question);
+
+    // 2. Embedding → relevant chunks
+    $results = $qdrantService->search($vector, 3);
+
+    // 3. Relevant chunks → Groq → answer
+    $answer = $aiService->generateAnswer($question, $results);
+
+    return [
+        'question' => $question,
+        'retrieved_chunks' => $results,
+        'answer' => $answer,
+    ];
 });
 
 require __DIR__.'/auth.php';

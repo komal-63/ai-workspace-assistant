@@ -52,4 +52,41 @@ class AIService
 
                 return $response->json('choices.0.message.content');
     }
+
+    public function generateAnswer(string $question, array $context): string
+    {
+            $contextText = collect($context)
+                ->pluck('payload.content')
+                ->filter()
+                ->implode("\n\n");
+
+            $prompt = <<<PROMPT
+            You are an AI assistant for a workspace.
+
+            Answer the user's question using the provided context.
+
+            If the answer is not present in the context, say that the information is not available in the provided documents.
+
+            Context:
+            {$contextText}
+
+            Question:
+            {$question}
+            PROMPT;
+
+                $response = Http::withToken(config('services.groq.api_key'))
+                    ->post('https://api.groq.com/openai/v1/chat/completions', [
+                        'model' => 'llama-3.3-70b-versatile',
+                        'messages' => [
+                            [
+                                'role' => 'user',
+                                'content' => $prompt,
+                            ],
+                        ],
+                    ]);
+
+                $response->throw();
+
+            return $response->json('choices.0.message.content');
+    }
 }
