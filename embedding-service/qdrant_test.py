@@ -58,7 +58,7 @@ client.upsert(
 print("5 chunks inserted successfully!")
 
 # Search
-question = "How can Laravel improve application performance?"
+question = "What does my uploaded document say about API authentication?"
 
 question_vector = model.encode(question).tolist()
 
