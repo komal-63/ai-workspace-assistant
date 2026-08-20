@@ -28,32 +28,37 @@ class QdrantService
     }
 
     public function search(
-        array $vector,
-        int $userId,
-        int $limit = 5
-    ): array {
-        $response = Http::post(
-            $this->baseUrl . '/collections/document_chunks/points/search',
-            [
-                'vector' => $vector,
-                'limit' => $limit,
-                'with_payload' => true,
+            array $vector,
+            int $userId,
+            int $limit = 5,
+            float $scoreThreshold = 0.20
+        ): array {
+            $response = Http::post(
+                $this->baseUrl . '/collections/document_chunks/points/search',
+                [
+                    'vector' => $vector,
+                    'limit' => $limit,
+                    'with_payload' => true,
+                    'score_threshold' => $scoreThreshold,
 
-                'filter' => [
-                    'must' => [
-                        [
-                            'key' => 'user_id',
-                            'match' => [
-                                'value' => $userId,
+                    'filter' => [
+                        'must' => [
+                            [
+                                'key' => 'user_id',
+                                'match' => [
+                                    'value' => $userId,
+                                ],
                             ],
                         ],
                     ],
-                ],
-            ]
-        );
+                ]
+            );
 
-        $response->throw();
+            $response->throw();
 
-        return $response->json('result', []);
-    }
+            $result = $response->json('result', []);
+
+           
+            return $result;
+        }
 }

@@ -13,6 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
     'file_path',
     'mime_type',
     'content',
+    'status'
 ])]
 class Document extends Model
 {

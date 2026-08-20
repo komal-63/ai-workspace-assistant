@@ -10,7 +10,7 @@ class AIService
     {
         $response = Http::withToken(config('services.groq.api_key'))
             ->post('https://api.groq.com/openai/v1/chat/completions', [
-                'model' => 'llama-3.3-70b-versatile',
+                'model' =>config('services.groq.model'),
                 'messages' => $messages,
             ]);
 
@@ -41,7 +41,7 @@ class AIService
 
                 $response = Http::withToken(config('services.groq.api_key'))
                     ->post('https://api.groq.com/openai/v1/chat/completions', [
-                        'model' => 'llama-3.3-70b-versatile',
+                        'model' => config('services.groq.model'),
                         'messages' => [
                             [
                                 'role' => 'user',
@@ -76,7 +76,7 @@ class AIService
 
                 $response = Http::withToken(config('services.groq.api_key'))
                     ->post('https://api.groq.com/openai/v1/chat/completions', [
-                        'model' => 'llama-3.3-70b-versatile',
+                        'model' => config('services.groq.model'),
                         'messages' => [
                             [
                                 'role' => 'user',
@@ -89,4 +89,33 @@ class AIService
 
             return $response->json('choices.0.message.content');
     }
+
+    public function generateGeneralAnswer(string $question): string
+{
+    $prompt = <<<PROMPT
+    You are an AI assistant for a workspace.
+
+    Answer the user's question naturally and accurately.
+
+    Question:
+    {$question}
+
+    Answer:
+    PROMPT;
+
+        $response = Http::withToken(config('services.groq.api_key'))
+            ->post('https://api.groq.com/openai/v1/chat/completions', [
+                'model' => config('services.groq.model'),
+                'messages' => [
+                    [
+                        'role' => 'user',
+                        'content' => $prompt,
+                    ],
+                ],
+            ]);
+
+        $response->throw();
+
+        return $response->json('choices.0.message.content');
+}
 }

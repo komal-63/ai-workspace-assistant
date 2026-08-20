@@ -76,10 +76,14 @@ class MessageController extends Controller
                 'content' => "Conversation summary:\n" . $conversation->summary,
             ]);
         }
-       $response = $this->aiService->generateAnswer(
-            $question,
-            $context
-        );
+        if (empty($context)) {
+            $response = $this->aiService->generateGeneralAnswer($question);
+        } else {
+            $response = $this->aiService->generateAnswer(
+                $question,
+                $context
+            );
+        }
         $conversation->messages()->create([
             'role' => 'assistant',
             'content' => $response,

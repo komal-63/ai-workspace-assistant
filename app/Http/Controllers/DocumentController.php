@@ -6,6 +6,7 @@ use App\Models\Document;
 use Illuminate\Http\Request;
 use App\Services\DocumentService;
 use App\Services\DocumentChunkService;
+use App\Jobs\ProcessDocumentJob;
 
 class DocumentController extends Controller
 {
@@ -52,7 +53,7 @@ class DocumentController extends Controller
             'content' => $content,
         ]);
 
-        $this->chunkService->createChunks($document);
+        ProcessDocumentJob::dispatch($document);
 
         return redirect()
             ->route('documents.index')
