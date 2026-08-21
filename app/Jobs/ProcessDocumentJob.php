@@ -6,6 +6,7 @@ use App\Models\Document;
 use App\Services\DocumentChunkService;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use App\Events\DocumentProcessed;
 use Throwable;
 
 class ProcessDocumentJob implements ShouldQueue
@@ -32,6 +33,8 @@ class ProcessDocumentJob implements ShouldQueue
         $this->document->update([
             'status' => 'completed',
         ]);
+
+        event(new DocumentProcessed($this->document));
     }
 
     public function failed(Throwable $exception): void

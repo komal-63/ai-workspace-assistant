@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Services\AIService;
 use App\Services\EmbeddingService;
 use App\Services\QdrantService;
+use App\Models\Document;
 
 class MessageController extends Controller
 {
@@ -56,6 +57,14 @@ class MessageController extends Controller
             auth()->id(),
             5
         );
+        $documentIds = collect($context)
+            ->pluck('payload.document_id')
+            ->filter()
+            ->unique()
+            ->values();
+
+        $documents = Document::whereIn('id', $documentIds)
+            ->pluck('title', 'id');
 
         $messages = $conversation->messages()
             ->latest()
@@ -76,6 +85,8 @@ class MessageController extends Controller
                 'content' => "Conversation summary:\n" . $conversation->summary,
             ]);
         }
+        $source = 'ai';
+        $sourceDocument = null;
         if (empty($context)) {
             $response = $this->aiService->generateGeneralAnswer($question);
         } else {
@@ -83,10 +94,13 @@ class MessageController extends Controller
                 $question,
                 $context
             );
+            $source = 'document';
+            $sourceDocument = $documents->first();
         }
         $conversation->messages()->create([
             'role' => 'assistant',
             'content' => $response,
+             'source' => $source,
         ]);
 
         $messageCount = $conversation->messages()->count();
