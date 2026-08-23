@@ -5,24 +5,21 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
 use App\Models\User;
+use App\Services\AdminDashboardService;
 
 class AdminController extends Controller
 {
+     public function __construct(
+        private AdminDashboardService $dashboardService
+    ) {
+    }
+    
     public function dashboard()
     {
-        $totalUsers = User::count();
-        $totalAdmins = User::where('role', 'admin')->count();
-        $totalManagers = User::where('role', 'manager')->count();
-        $totalNormalUsers = $totalUsers - $totalAdmins - $totalManagers;
+        $stats = $this->dashboardService->getStats();
 
-        return view('admin.dashboard', [
-            'totalUsers' => $totalUsers,
-            'totalAdmins' => $totalAdmins,
-            'totalManagers' => $totalManagers,
-            'totalNormalUsers' => $totalNormalUsers,
-        ]);
+        return view('admin.dashboard', $stats);
     }
-
     public function users()
     {
         Gate::authorize('viewAny', User::class);

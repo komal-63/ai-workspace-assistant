@@ -6,19 +6,23 @@ use App\Models\Document;
 use Illuminate\Http\Request;
 use App\Services\DocumentService;
 use App\Services\DocumentChunkService;
+use App\Services\QdrantService;
 use App\Jobs\ProcessDocumentJob;
 
 class DocumentController extends Controller
 {
     private DocumentService $documentService;
     private DocumentChunkService $chunkService;
+    private QdrantService $qdrantService;
 
     public function __construct(
         DocumentService $documentService,
-        DocumentChunkService $chunkService
+        DocumentChunkService $chunkService,
+        QdrantService $qdrantService
     ) {
         $this->documentService = $documentService;
         $this->chunkService = $chunkService;
+        $this->qdrantService = $qdrantService;
     }
 
     public function index()
@@ -66,6 +70,8 @@ class DocumentController extends Controller
             $document->user_id === auth()->id(),
             403
         );
+
+        $this->qdrantService->deleteByDocument($document->id);
 
         if ($document->file_path) {
             \Storage::delete($document->file_path);

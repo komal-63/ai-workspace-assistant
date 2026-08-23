@@ -8,20 +8,26 @@
 
         <strong>{{ ucfirst($message->role) }}:</strong>
 
-        @if($message->role === 'assistant')
+       @if($message->source === 'document')
 
-            @if($message->source === 'document')
-                <div style="font-size: 13px; color: green; margin: 5px 0;">
-                    📄 Based on your document
-                </div>
-            @elseif($message->source === 'ai')
-                <div style="font-size: 13px; color: blue; margin: 5px 0;">
-                    🤖 AI Generated
-                </div>
-            @endif
+            <small>
+                📄 Based on:
+                {{ $message->document?->title ?? 'Uploaded document' }}
+            </small>
+
+        @elseif($message->source === 'not_found')
+
+            <small>
+                🔍 Not found in uploaded documents
+            </small>
+
+        @else
+
+            <small>
+                🤖 AI Generated
+            </small>
 
         @endif
-
         <div>
             {{ $message->content }}
         </div>

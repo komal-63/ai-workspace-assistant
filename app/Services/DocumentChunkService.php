@@ -26,10 +26,14 @@ class DocumentChunkService
                 continue;
             }
 
-            $documentChunk = $document->chunks()->create([
-                'chunk_index' => $index,
-                'content' => $chunk,
-            ]);
+            $documentChunk = $document->chunks()->firstOrCreate(
+                [
+                    'chunk_index' => $index,
+                ],
+                [
+                    'content' => $chunk,
+                ]
+            );
 
             $vector = $this->embeddingService->generate($chunk);
 

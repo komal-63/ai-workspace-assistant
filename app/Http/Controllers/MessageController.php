@@ -7,14 +7,15 @@ use Illuminate\Http\Request;
 use App\Services\AIService;
 use App\Services\EmbeddingService;
 use App\Services\QdrantService;
+use App\Services\RAGService;
 use App\Models\Document;
+
 
 class MessageController extends Controller
 {
     public function __construct(
         private AIService $aiService,
-        private EmbeddingService $embeddingService,
-        private QdrantService $qdrantService
+        private RAGService $ragService
     ) {
     }
 
@@ -50,21 +51,14 @@ class MessageController extends Controller
 
         $question = $request->content;
 
-        $questionVector = $this->embeddingService->generate($question);
-
-        $context = $this->qdrantService->search(
-            $questionVector,
-            auth()->id(),
-            5
+        $ragResult = $this->ragService->answer(
+            $question,
+            auth()->id()
         );
-        $documentIds = collect($context)
-            ->pluck('payload.document_id')
-            ->filter()
-            ->unique()
-            ->values();
 
-        $documents = Document::whereIn('id', $documentIds)
-            ->pluck('title', 'id');
+        $response = $ragResult['response'];
+        $source = $ragResult['source'];
+        $documentId = $ragResult['document_id'];
 
         $messages = $conversation->messages()
             ->latest()
@@ -79,28 +73,19 @@ class MessageController extends Controller
             })
             ->values()
             ->toArray();
+
         if ($conversation->summary) {
             array_unshift($messages, [
                 'role' => 'system',
                 'content' => "Conversation summary:\n" . $conversation->summary,
             ]);
         }
-        $source = 'ai';
-        $sourceDocument = null;
-        if (empty($context)) {
-            $response = $this->aiService->generateGeneralAnswer($question);
-        } else {
-            $response = $this->aiService->generateAnswer(
-                $question,
-                $context
-            );
-            $source = 'document';
-            $sourceDocument = $documents->first();
-        }
+
         $conversation->messages()->create([
             'role' => 'assistant',
             'content' => $response,
-             'source' => $source,
+            'source' => $source,
+            'document_id' => $documentId,
         ]);
 
         $messageCount = $conversation->messages()->count();

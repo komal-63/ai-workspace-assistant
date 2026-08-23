@@ -118,4 +118,9 @@ class AIService
 
         return $response->json('choices.0.message.content');
 }
+
+public function generateNotFoundAnswer(string $question): string
+{
+    return "I couldn't find this information in your uploaded documents.";
+}
 }

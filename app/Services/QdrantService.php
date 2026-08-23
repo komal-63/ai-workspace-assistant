@@ -61,4 +61,23 @@ class QdrantService
            
             return $result;
         }
+
+    public function deleteByDocument(int $documentId): void
+    {
+        Http::post(
+            $this->baseUrl . '/collections/document_chunks/points/delete',
+            [
+                'filter' => [
+                    'must' => [
+                        [
+                            'key' => 'document_id',
+                            'match' => [
+                                'value' => $documentId,
+                            ],
+                        ],
+                    ],
+                ],
+            ]
+        )->throw();
+    }
 }
