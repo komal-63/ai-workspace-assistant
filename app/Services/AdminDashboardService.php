@@ -26,5 +26,10 @@ class AdminDashboardService
             }
         );
     }
+
+    public function clearStatsCache(): void
+    {
+        Cache::forget('admin.dashboard.stats');
+    }
    
 }

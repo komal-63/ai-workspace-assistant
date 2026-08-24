@@ -45,7 +45,7 @@ class AdminController extends Controller
         $user->update([
             'role' => $request->role,
         ]);
-
+        $this->dashboardService->clearStatsCache();
         return redirect()
             ->route('admin.users')
             ->with('success', 'User role updated successfully.');
@@ -56,7 +56,7 @@ class AdminController extends Controller
         Gate::authorize('delete', $user);
 
         $user->delete();
-
+        $this->dashboardService->clearStatsCache();
         return redirect()
             ->route('admin.users')
             ->with('success', 'User deleted successfully.');

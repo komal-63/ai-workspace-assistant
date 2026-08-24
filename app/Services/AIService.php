@@ -6,15 +6,42 @@ use Illuminate\Support\Facades\Http;
 
 class AIService
 {
-    public function generateResponse($messages): string
+
+    private function request(array $messages): string
     {
-        $response = Http::withToken(config('services.groq.api_key'))
-            ->post('https://api.groq.com/openai/v1/chat/completions', [
-                'model' =>config('services.groq.model'),
-                'messages' => $messages,
+        try {
+            $response = Http::withToken(config('services.groq.api_key'))
+                ->timeout(30)
+                ->post('https://api.groq.com/openai/v1/chat/completions', [
+                    'model' => config('services.groq.model'),
+                    'messages' => $messages,
+                ]);
+
+            $response->throw();
+
+            $content = $response->json('choices.0.message.content');
+
+            if (!is_string($content) || trim($content) === '') {
+                throw new \RuntimeException(
+                    'Groq returned an invalid or empty response.'
+                );
+            }
+
+            return $content;
+
+        } catch (\Throwable $exception) {
+
+            \Illuminate\Support\Facades\Log::error('Groq API request failed.', [
+                'error' => $exception->getMessage(),
             ]);
 
-        return $response->json('choices.0.message.content');
+            throw $exception;
+        }
+    }
+
+    public function generateResponse(array $messages): string
+    {
+        return $this->request($messages);
     }
 
     public function generateSummary(string $existingSummary, array $messages): string
@@ -39,18 +66,12 @@ class AIService
         Do not include unnecessary details.
         PROMPT;
 
-                $response = Http::withToken(config('services.groq.api_key'))
-                    ->post('https://api.groq.com/openai/v1/chat/completions', [
-                        'model' => config('services.groq.model'),
-                        'messages' => [
-                            [
-                                'role' => 'user',
-                                'content' => $prompt,
-                            ],
-                        ],
-                    ]);
-
-                return $response->json('choices.0.message.content');
+                return $this->request([
+                [
+                    'role' => 'user',
+                    'content' => $prompt,
+                ],
+            ]);
     }
 
     public function generateAnswer(string $question, array $context): string
@@ -74,53 +95,37 @@ class AIService
             {$question}
             PROMPT;
 
-                $response = Http::withToken(config('services.groq.api_key'))
-                    ->post('https://api.groq.com/openai/v1/chat/completions', [
-                        'model' => config('services.groq.model'),
-                        'messages' => [
-                            [
-                                'role' => 'user',
-                                'content' => $prompt,
-                            ],
-                        ],
-                    ]);
-
-                $response->throw();
-
-            return $response->json('choices.0.message.content');
+                return $this->request([
+                [
+                    'role' => 'user',
+                    'content' => $prompt,
+                ],
+            ]);
     }
 
     public function generateGeneralAnswer(string $question): string
-{
-    $prompt = <<<PROMPT
-    You are an AI assistant for a workspace.
+    {
+        $prompt = <<<PROMPT
+        You are an AI assistant for a workspace.
 
-    Answer the user's question naturally and accurately.
+        Answer the user's question naturally and accurately.
 
-    Question:
-    {$question}
+        Question:
+        {$question}
 
-    Answer:
-    PROMPT;
+        Answer:
+        PROMPT;
 
-        $response = Http::withToken(config('services.groq.api_key'))
-            ->post('https://api.groq.com/openai/v1/chat/completions', [
-                'model' => config('services.groq.model'),
-                'messages' => [
-                    [
-                        'role' => 'user',
-                        'content' => $prompt,
-                    ],
+            return $this->request([
+                [
+                    'role' => 'user',
+                    'content' => $prompt,
                 ],
             ]);
+    }
 
-        $response->throw();
-
-        return $response->json('choices.0.message.content');
-}
-
-public function generateNotFoundAnswer(string $question): string
-{
-    return "I couldn't find this information in your uploaded documents.";
-}
+    public function generateNotFoundAnswer(string $question): string
+    {
+        return "I couldn't find this information in your uploaded documents.";
+    }
 }
