@@ -1,14 +1,17 @@
 <?php
 
 namespace App\Http\Controllers;
+
 use App\Models\Conversation;
 use Illuminate\Http\Request;
-
+use Illuminate\Support\Facades\Gate;
 
 class ConversationController extends Controller
 {
-     public function index()
+    public function index()
     {
+        Gate::authorize('viewAny', Conversation::class);
+
         $conversations = auth()->user()
             ->conversations()
             ->latest()
@@ -17,8 +20,10 @@ class ConversationController extends Controller
         return view('conversations.index', compact('conversations'));
     }
 
-     public function store(Request $request)
+    public function store(Request $request)
     {
+        Gate::authorize('create', Conversation::class);
+
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
         ]);

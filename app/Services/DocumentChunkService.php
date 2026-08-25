@@ -26,7 +26,7 @@ class DocumentChunkService
                 continue;
             }
 
-            $documentChunk = $document->chunks()->firstOrCreate(
+            $documentChunk = $document->chunks()->updateOrCreate(
                 [
                     'chunk_index' => $index,
                 ],

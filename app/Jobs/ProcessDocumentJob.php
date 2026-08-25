@@ -8,6 +8,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use App\Events\DocumentProcessed;
 use Throwable;
+use Illuminate\Support\Facades\Log;
 
 class ProcessDocumentJob implements ShouldQueue
 {
@@ -41,6 +42,12 @@ class ProcessDocumentJob implements ShouldQueue
     {
         $this->document->update([
             'status' => 'failed',
+        ]);
+
+        Log::error('Document processing failed.', [
+            'document_id' => $this->document->id,
+            'user_id' => $this->document->user_id,
+            'error' => $exception->getMessage(),
         ]);
     }
 }

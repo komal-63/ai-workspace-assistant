@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use Illuminate\Support\Facades\Http;
+use App\Exceptions\AIServiceException;
 
 class AIService
 {
@@ -29,13 +30,18 @@ class AIService
 
             return $content;
 
-        } catch (\Throwable $exception) {
+        } 
+        catch (\Throwable $exception) {
 
             \Illuminate\Support\Facades\Log::error('Groq API request failed.', [
                 'error' => $exception->getMessage(),
             ]);
 
-            throw $exception;
+            throw new AIServiceException(
+                'AI service is currently unavailable.',
+                0,
+                $exception
+            );
         }
     }
 

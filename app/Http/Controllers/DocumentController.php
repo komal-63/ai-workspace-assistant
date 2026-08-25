@@ -8,6 +8,7 @@ use App\Services\DocumentService;
 use App\Services\DocumentChunkService;
 use App\Services\QdrantService;
 use App\Jobs\ProcessDocumentJob;
+use Illuminate\Support\Facades\Gate;
 
 class DocumentController extends Controller
 {
@@ -27,6 +28,8 @@ class DocumentController extends Controller
 
     public function index()
     {
+        Gate::authorize('viewAny', Document::class);
+
         $documents = auth()->user()
             ->documents()
             ->latest()
@@ -37,6 +40,8 @@ class DocumentController extends Controller
 
     public function store(Request $request)
     {
+         Gate::authorize('create', Document::class);
+
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
             'file' => ['required', 'file', 'mimes:txt,pdf', 'max:10240'],
@@ -66,10 +71,7 @@ class DocumentController extends Controller
 
     public function destroy(Document $document)
     {
-        abort_unless(
-            $document->user_id === auth()->id(),
-            403
-        );
+        Gate::authorize('delete', $document);
 
         $this->qdrantService->deleteByDocument($document->id);
 

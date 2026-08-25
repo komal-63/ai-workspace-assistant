@@ -5,11 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\Conversation;
 use Illuminate\Http\Request;
 use App\Services\AIService;
-use App\Services\EmbeddingService;
-use App\Services\QdrantService;
 use App\Services\RAGService;
-use App\Models\Document;
-
+use Illuminate\Support\Facades\Gate;
 
 class MessageController extends Controller
 {
@@ -21,10 +18,7 @@ class MessageController extends Controller
 
     public function index(Conversation $conversation)
     {
-        abort_unless(
-            $conversation->user_id === auth()->id(),
-            403
-        );
+        Gate::authorize('view', $conversation);
 
         $messages = $conversation->messages()
             ->oldest()
@@ -35,10 +29,7 @@ class MessageController extends Controller
 
     public function store(Request $request, Conversation $conversation)
     {
-        abort_unless(
-            $conversation->user_id === auth()->id(),
-            403
-        );
+        Gate::authorize('view', $conversation);
 
         $request->validate([
             'content' => ['required', 'string'],
@@ -114,10 +105,12 @@ class MessageController extends Controller
 
                 $conversation->update([
                     'summary' => $summary,
-                    'summary_message_count' => $conversation->summary_message_count + count($newMessages),
+                    'summary_message_count' =>
+                        $conversation->summary_message_count + count($newMessages),
                 ]);
             }
         }
+
         return redirect()->route('messages.index', $conversation);
     }
 }
