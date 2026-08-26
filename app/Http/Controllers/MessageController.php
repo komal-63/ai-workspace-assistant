@@ -24,8 +24,18 @@ class MessageController extends Controller
             ->oldest()
             ->get();
 
-        return view('messages.index', compact('conversation', 'messages'));
+        $conversations = auth()->user()
+            ->conversations()
+            ->latest()
+            ->get();
+
+        return view('messages.index', compact(
+            'conversation',
+            'messages',
+            'conversations'
+        ));
     }
+
 
     public function store(Request $request, Conversation $conversation)
     {

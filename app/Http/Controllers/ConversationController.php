@@ -20,7 +20,7 @@ class ConversationController extends Controller
         return view('conversations.index', compact('conversations'));
     }
 
-    public function store(Request $request)
+   public function store(Request $request)
     {
         Gate::authorize('create', Conversation::class);
 
@@ -28,10 +28,10 @@ class ConversationController extends Controller
             'title' => ['required', 'string', 'max:255'],
         ]);
 
-        auth()->user()->conversations()->create([
+        $conversation = auth()->user()->conversations()->create([
             'title' => $request->title,
         ]);
 
-        return redirect()->route('conversations.index');
+        return redirect()->route('messages.index', $conversation);
     }
 }
