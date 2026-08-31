@@ -51,21 +51,11 @@ class MessageController extends Controller
         ]);
 
         $question = $request->content;
-
-        $ragResult = $this->ragService->answer(
-            $question,
-            auth()->id()
-        );
-
-        $response = $ragResult['response'];
-        $source = $ragResult['source'];
-        $documentId = $ragResult['document_id'];
-
         $messages = $conversation->messages()
-            ->latest()
-            ->take(20)
+            ->oldest()
+            ->skip($conversation->summary_message_count)
             ->get()
-            ->reverse()
+            ->slice(0, -1)
             ->map(function ($message) {
                 return [
                     'role' => $message->role,
@@ -81,6 +71,15 @@ class MessageController extends Controller
                 'content' => "Conversation summary:\n" . $conversation->summary,
             ]);
         }
+        $ragResult = $this->ragService->answer(
+            $question,
+            auth()->id(),
+            $messages
+        );
+
+        $response = $ragResult['response'];
+        $source = $ragResult['source'];
+        $documentId = $ragResult['document_id'];
 
         $conversation->messages()->create([
             'role' => 'assistant',
@@ -91,7 +90,10 @@ class MessageController extends Controller
 
         $messageCount = $conversation->messages()->count();
 
-        if ($messageCount > $conversation->summary_message_count) {
+        $unsummarizedCount =
+            $messageCount - $conversation->summary_message_count;
+
+        if ($unsummarizedCount >= 20) {
 
             $newMessages = $conversation->messages()
                 ->oldest()

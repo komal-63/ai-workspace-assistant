@@ -60,6 +60,8 @@ Route::middleware('auth')->group(function () {
         ->name('documents.store');
     Route::delete('/documents/{document}', [DocumentController::class, 'destroy'])
     ->name('documents.destroy');
+    Route::get('/documents/{document}/view', [DocumentController::class, 'view'])
+    ->name('documents.view');
 
 });
 

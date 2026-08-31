@@ -25,7 +25,11 @@ class RAGService
         );
     }
 
-     public function answer(string $question, int $userId): array
+     public function answer(
+        string $question,
+        int $userId,
+        array $history = []
+    ): array
     {
         $isDocumentQuestion = $this->isDocumentQuestion($question);
 
@@ -33,7 +37,10 @@ class RAGService
         if (!$isDocumentQuestion) {
             return [
                 'source' => 'ai',
-                'response' => $this->aiService->generateGeneralAnswer($question),
+                'response' => $this->aiService->generateGeneralAnswer(
+                    $question,
+                    $history
+                ),
                 'document_id' => null,
             ];
         }
@@ -57,7 +64,8 @@ class RAGService
             'source' => 'document',
             'response' => $this->aiService->generateAnswer(
                 $question,
-                $context
+                $context,
+                $history
             ),
             'document_id' => $context[0]['payload']['document_id'] ?? null,
         ];

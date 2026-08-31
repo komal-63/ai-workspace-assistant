@@ -1,100 +1,586 @@
-<nav x-data="{ open: false }" class="bg-white dark:bg-gray-800 border-b border-gray-100 dark:border-gray-700">
-    <!-- Primary Navigation Menu -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-            <div class="flex">
-                <!-- Logo -->
-                <div class="shrink-0 flex items-center">
-                    <a href="{{ route('dashboard') }}">
-                        <x-application-logo class="block h-9 w-auto fill-current text-gray-800 dark:text-gray-200" />
-                    </a>
-                </div>
+<nav class="main-nav">
 
-                <!-- Navigation Links -->
-                <div class="hidden space-x-8 sm:-my-px sm:ms-10 sm:flex">
-                    <x-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                        {{ __('Dashboard') }}
-                    </x-nav-link>
-                </div>
-            </div>
+    <div class="nav-container">
 
-            <!-- Settings Dropdown -->
-            <div class="hidden sm:flex sm:items-center sm:ms-6">
-                <x-dropdown align="right" width="48">
-                    <x-slot name="trigger">
-                        <button class="inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 hover:text-gray-700 dark:hover:text-gray-300 focus:outline-none transition ease-in-out duration-150">
-                            <div>{{ Auth::user()->name }}</div>
+        {{-- Logo / Brand --}}
+        <a href="{{ route('dashboard') }}" class="nav-brand">
+            AI Workspace
+        </a>
 
-                            <div class="ms-1">
-                                <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
-                                </svg>
-                            </div>
-                        </button>
-                    </x-slot>
+        {{-- Desktop Navigation --}}
+        <div class="nav-links">
 
-                    <x-slot name="content">
-                        <x-dropdown-link :href="route('profile.edit')">
-                            {{ __('Profile') }}
-                        </x-dropdown-link>
+            <a href="{{ route('dashboard') }}"
+               class="nav-link {{ request()->routeIs('dashboard') ? 'active' : '' }}">
+                Dashboard
+            </a>
 
-                        <!-- Authentication -->
-                        <form method="POST" action="{{ route('logout') }}">
-                            @csrf
+            <a href="{{ route('conversations.index') }}"
+               class="nav-link {{ request()->routeIs('conversations.*', 'messages.*') ? 'active' : '' }}">
+                Conversations
+            </a>
 
-                            <x-dropdown-link :href="route('logout')"
-                                    onclick="event.preventDefault();
-                                                this.closest('form').submit();">
-                                {{ __('Log Out') }}
-                            </x-dropdown-link>
-                        </form>
-                    </x-slot>
-                </x-dropdown>
-            </div>
+            <a href="{{ route('documents.index') }}"
+               class="nav-link {{ request()->routeIs('documents.*') ? 'active' : '' }}">
+                Documents
+            </a>
 
-            <!-- Hamburger -->
-            <div class="-me-2 flex items-center sm:hidden">
-                <button @click="open = ! open" class="inline-flex items-center justify-center p-2 rounded-md text-gray-400 dark:text-gray-500 hover:text-gray-500 dark:hover:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-900 focus:outline-none focus:bg-gray-100 dark:focus:bg-gray-900 focus:text-gray-500 dark:focus:text-gray-400 transition duration-150 ease-in-out">
-                    <svg class="h-6 w-6" stroke="currentColor" fill="none" viewBox="0 0 24 24">
-                        <path :class="{'hidden': open, 'inline-flex': ! open }" class="inline-flex" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-                        <path :class="{'hidden': ! open, 'inline-flex': open }" class="hidden" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-        </div>
-    </div>
+            {{-- Admin Navigation --}}
+            @if(Auth::user()->role === 'admin')
 
-    <!-- Responsive Navigation Menu -->
-    <div :class="{'block': open, 'hidden': ! open}" class="hidden sm:hidden">
-        <div class="pt-2 pb-3 space-y-1">
-            <x-responsive-nav-link :href="route('dashboard')" :active="request()->routeIs('dashboard')">
-                {{ __('Dashboard') }}
-            </x-responsive-nav-link>
+                <a href="{{ route('admin.dashboard') }}"
+                   class="nav-link {{ request()->routeIs('admin.*') ? 'active' : '' }}">
+                    Admin
+                </a>
+
+            @endif
+
         </div>
 
-        <!-- Responsive Settings Options -->
-        <div class="pt-4 pb-1 border-t border-gray-200 dark:border-gray-600">
-            <div class="px-4">
-                <div class="font-medium text-base text-gray-800 dark:text-gray-200">{{ Auth::user()->name }}</div>
-                <div class="font-medium text-sm text-gray-500">{{ Auth::user()->email }}</div>
-            </div>
+        {{-- Desktop User Menu --}}
+        <div class="user-menu">
 
-            <div class="mt-3 space-y-1">
-                <x-responsive-nav-link :href="route('profile.edit')">
-                    {{ __('Profile') }}
-                </x-responsive-nav-link>
+            <button type="button"
+                    class="user-button"
+                    onclick="toggleUserMenu()">
 
-                <!-- Authentication -->
+                <span>{{ Auth::user()->name }}</span>
+
+                <span class="user-arrow" id="userArrow">
+                    ▼
+                </span>
+
+            </button>
+
+            <div class="user-dropdown" id="userDropdown">
+
+                <a href="{{ route('profile.edit') }}">
+                    Profile
+                </a>
+
                 <form method="POST" action="{{ route('logout') }}">
                     @csrf
 
-                    <x-responsive-nav-link :href="route('logout')"
-                            onclick="event.preventDefault();
-                                        this.closest('form').submit();">
-                        {{ __('Log Out') }}
-                    </x-responsive-nav-link>
+                    <button type="submit">
+                        Log Out
+                    </button>
                 </form>
+
             </div>
+
         </div>
+
+        {{-- Mobile Menu Button --}}
+        <button type="button"
+                class="mobile-menu-button"
+                onclick="toggleMobileMenu()"
+                aria-label="Toggle navigation">
+
+            <span></span>
+            <span></span>
+            <span></span>
+
+        </button>
+
     </div>
+
+    {{-- Mobile Navigation --}}
+    <div class="mobile-menu" id="mobileMenu">
+
+        <a href="{{ route('dashboard') }}"
+           class="{{ request()->routeIs('dashboard') ? 'active' : '' }}">
+            Dashboard
+        </a>
+
+        <a href="{{ route('conversations.index') }}"
+           class="{{ request()->routeIs('conversations.*', 'messages.*') ? 'active' : '' }}">
+            Conversations
+        </a>
+
+        <a href="{{ route('documents.index') }}"
+           class="{{ request()->routeIs('documents.*') ? 'active' : '' }}">
+            Documents
+        </a>
+
+        @if(Auth::user()->role === 'admin')
+
+            <a href="{{ route('admin.dashboard') }}"
+               class="{{ request()->routeIs('admin.*') ? 'active' : '' }}">
+                Admin
+            </a>
+
+        @endif
+
+        <div class="mobile-user-section">
+
+            <div class="mobile-user-name">
+                {{ Auth::user()->name }}
+            </div>
+
+            <a href="{{ route('profile.edit') }}">
+                Profile
+            </a>
+
+            <form method="POST" action="{{ route('logout') }}">
+                @csrf
+
+                <button type="submit">
+                    Log Out
+                </button>
+            </form>
+
+        </div>
+
+    </div>
+
 </nav>
+
+
+<style>
+
+    /* =========================
+       Design Tokens
+       ========================= */
+
+    .main-nav {
+
+        --paper: #FAF7F1;
+        --paper-raised: #FFFFFF;
+        --ink: #23241F;
+        --ink-soft: #6B6A63;
+        --ink-faint: #A6A399;
+        --line: #E7E1D3;
+        --brass: #9C6B30;
+        --brass-soft: #F1E6D2;
+
+        --font-display: 'Fraunces', Georgia, serif;
+        --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+        background: var(--paper-raised);
+        border-bottom: 1px solid var(--line);
+        font-family: var(--font-body);
+        color: var(--ink);
+
+        position: relative;
+        z-index: 100;
+    }
+
+
+    /* =========================
+       Container
+       ========================= */
+
+    .nav-container {
+
+        max-width: 1100px;
+        height: 68px;
+        margin: 0 auto;
+        padding: 0 24px;
+
+        display: flex;
+        align-items: center;
+    }
+
+
+    /* =========================
+       Brand
+       ========================= */
+
+    .nav-brand {
+
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 20px;
+        font-weight: 600;
+        text-decoration: none;
+
+        white-space: nowrap;
+    }
+
+    .nav-brand:hover {
+        color: var(--brass);
+    }
+
+
+    /* =========================
+       Navigation Links
+       ========================= */
+
+    .nav-links {
+
+        display: flex;
+        align-items: center;
+        gap: 28px;
+
+        margin-left: 48px;
+    }
+
+    .nav-link {
+
+        position: relative;
+
+        color: var(--ink-soft);
+        font-size: 13px;
+        font-weight: 500;
+
+        text-decoration: none;
+
+        padding: 25px 0 23px;
+
+        transition: color 0.15s ease;
+    }
+
+    .nav-link:hover {
+        color: var(--ink);
+    }
+
+    .nav-link.active {
+        color: var(--ink);
+        font-weight: 600;
+    }
+
+    .nav-link.active::after {
+
+        content: "";
+
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+
+        height: 2px;
+
+        background: var(--brass);
+    }
+
+
+    /* =========================
+       User Menu
+       ========================= */
+
+    .user-menu {
+
+        position: relative;
+        margin-left: auto;
+    }
+
+    .user-button {
+
+        border: none;
+        background: transparent;
+
+        display: flex;
+        align-items: center;
+        gap: 7px;
+
+        padding: 8px 0;
+
+        color: var(--ink-soft);
+
+        font-family: var(--font-body);
+        font-size: 13px;
+        font-weight: 500;
+
+        cursor: pointer;
+    }
+
+    .user-button:hover {
+        color: var(--ink);
+    }
+
+    .user-arrow {
+
+        font-size: 8px;
+
+        transition: transform 0.15s ease;
+    }
+
+    .user-arrow.open {
+        transform: rotate(180deg);
+    }
+
+
+    /* =========================
+       User Dropdown
+       ========================= */
+
+    .user-dropdown {
+
+        display: none;
+
+        position: absolute;
+        top: calc(100% + 10px);
+        right: 0;
+
+        width: 150px;
+
+        padding: 6px;
+
+        background: var(--paper-raised);
+        border: 1px solid var(--line);
+        border-radius: 9px;
+
+        box-shadow: 0 8px 25px rgba(35, 36, 31, 0.08);
+    }
+
+    .user-dropdown.open {
+        display: block;
+    }
+
+    .user-dropdown a,
+    .user-dropdown button {
+
+        display: block;
+
+        width: 100%;
+
+        padding: 9px 10px;
+
+        border: none;
+        border-radius: 6px;
+
+        background: transparent;
+
+        color: var(--ink-soft);
+
+        font-family: var(--font-body);
+        font-size: 12px;
+
+        text-align: left;
+        text-decoration: none;
+
+        cursor: pointer;
+    }
+
+    .user-dropdown a:hover,
+    .user-dropdown button:hover {
+
+        background: var(--paper);
+        color: var(--ink);
+    }
+
+
+    /* =========================
+       Mobile
+       ========================= */
+
+    .mobile-menu-button {
+        display: none;
+
+        margin-left: auto;
+
+        width: 40px;
+        height: 40px;
+
+        border: 1px solid var(--line);
+        border-radius: 8px;
+
+        background: var(--paper-raised);
+
+        cursor: pointer;
+    }
+
+    .mobile-menu-button span {
+
+        display: block;
+
+        width: 18px;
+        height: 1px;
+
+        margin: 4px auto;
+
+        background: var(--ink);
+    }
+
+
+    .mobile-menu {
+        display: none;
+
+        padding: 8px 16px 18px;
+
+        background: var(--paper-raised);
+        border-top: 1px solid var(--line);
+    }
+
+    .mobile-menu.open {
+        display: block;
+    }
+
+    .mobile-menu > a {
+
+        display: block;
+
+        padding: 11px 10px;
+
+        border-radius: 7px;
+
+        color: var(--ink-soft);
+
+        font-size: 13px;
+        text-decoration: none;
+    }
+
+    .mobile-menu > a:hover,
+    .mobile-menu > a.active {
+
+        background: var(--paper);
+        color: var(--ink);
+    }
+
+    .mobile-menu > a.active {
+        font-weight: 600;
+    }
+
+
+    /* =========================
+       Mobile User Section
+       ========================= */
+
+    .mobile-user-section {
+
+        margin-top: 10px;
+        padding-top: 12px;
+
+        border-top: 1px solid var(--line);
+    }
+
+    .mobile-user-name {
+
+        padding: 8px 10px;
+
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .mobile-user-section a,
+    .mobile-user-section button {
+
+        display: block;
+
+        width: 100%;
+
+        padding: 10px;
+
+        border: none;
+        border-radius: 7px;
+
+        background: transparent;
+
+        color: var(--ink-soft);
+
+        font-family: var(--font-body);
+        font-size: 13px;
+
+        text-align: left;
+        text-decoration: none;
+
+        cursor: pointer;
+    }
+
+    .mobile-user-section a:hover,
+    .mobile-user-section button:hover {
+
+        background: var(--paper);
+        color: var(--ink);
+    }
+
+
+    /* =========================
+       Mobile Breakpoint
+       ========================= */
+
+    @media (max-width: 767px) {
+
+        .nav-container {
+            height: 60px;
+            padding: 0 16px;
+        }
+
+        .nav-brand {
+            font-size: 19px;
+        }
+
+        .nav-links,
+        .user-menu {
+            display: none;
+        }
+
+        .mobile-menu-button {
+            display: block;
+        }
+    }
+
+
+    /* =========================
+       Accessibility
+       ========================= */
+
+    .nav-brand:focus-visible,
+    .nav-link:focus-visible,
+    .user-button:focus-visible,
+    .user-dropdown a:focus-visible,
+    .user-dropdown button:focus-visible,
+    .mobile-menu-button:focus-visible,
+    .mobile-menu a:focus-visible,
+    .mobile-menu button:focus-visible {
+
+        outline: 2px solid var(--brass);
+        outline-offset: 2px;
+    }
+
+
+    @media (prefers-reduced-motion: reduce) {
+
+        .main-nav * {
+            transition: none !important;
+        }
+    }
+
+</style>
+
+
+<script>
+
+    function toggleUserMenu() {
+
+        const dropdown = document.getElementById('userDropdown');
+        const arrow = document.getElementById('userArrow');
+
+        dropdown.classList.toggle('open');
+        arrow.classList.toggle('open');
+    }
+
+
+    function toggleMobileMenu() {
+
+        const menu = document.getElementById('mobileMenu');
+
+        menu.classList.toggle('open');
+    }
+
+
+    // Close user dropdown when clicking outside
+
+    document.addEventListener('click', function (event) {
+
+        const userMenu = document.querySelector('.user-menu');
+
+        if (!userMenu) {
+            return;
+        }
+
+        if (!userMenu.contains(event.target)) {
+
+            document
+                .getElementById('userDropdown')
+                .classList.remove('open');
+
+            document
+                .getElementById('userArrow')
+                .classList.remove('open');
+        }
+
+    });
+
+</script>

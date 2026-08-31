@@ -80,54 +80,62 @@ class AIService
             ]);
     }
 
-    public function generateAnswer(string $question, array $context): string
+    public function generateAnswer(
+    string $question,
+    array $context,
+    array $history = []
+): string
+{
+    $contextText = collect($context)
+        ->pluck('payload.content')
+        ->filter()
+        ->implode("\n\n");
+
+    $messages = $history;
+
+    $messages[] = [
+        'role' => 'system',
+        'content' => <<<PROMPT
+You are an AI assistant for a workspace.
+
+Use the conversation history and the provided document context
+to answer the user's current question.
+
+If the answer is not present in the provided document context
+and the question specifically depends on the document,
+say that the information is not available in the provided documents.
+
+Document context:
+{$contextText}
+PROMPT,
+    ];
+
+    $messages[] = [
+        'role' => 'user',
+        'content' => $question,
+    ];
+
+    return $this->request($messages);
+}
+
+    public function generateGeneralAnswer(
+        string $question,
+        array $history = []
+    ): string
     {
-            $contextText = collect($context)
-                ->pluck('payload.content')
-                ->filter()
-                ->implode("\n\n");
+        $messages = $history;
 
-            $prompt = <<<PROMPT
-            You are an AI assistant for a workspace.
+        $messages[] = [
+            'role' => 'system',
+            'content' => 'You are an AI assistant for a workspace. Answer the user naturally and accurately. Use the conversation history when it is relevant.',
+        ];
 
-            Answer the user's question using the provided context.
+        $messages[] = [
+            'role' => 'user',
+            'content' => $question,
+        ];
 
-            If the answer is not present in the context, say that the information is not available in the provided documents.
-
-            Context:
-            {$contextText}
-
-            Question:
-            {$question}
-            PROMPT;
-
-                return $this->request([
-                [
-                    'role' => 'user',
-                    'content' => $prompt,
-                ],
-            ]);
-    }
-
-    public function generateGeneralAnswer(string $question): string
-    {
-        $prompt = <<<PROMPT
-        You are an AI assistant for a workspace.
-
-        Answer the user's question naturally and accurately.
-
-        Question:
-        {$question}
-
-        Answer:
-        PROMPT;
-
-            return $this->request([
-                [
-                    'role' => 'user',
-                    'content' => $prompt,
-                ],
-            ]);
+        return $this->request($messages);
     }
 
     public function generateNotFoundAnswer(string $question): string

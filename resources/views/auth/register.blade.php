@@ -1,52 +1,548 @@
 <x-guest-layout>
-    <form method="POST" action="{{ route('register') }}">
-        @csrf
 
-        <!-- Name -->
-        <div>
-            <x-input-label for="name" :value="__('Name')" />
-            <x-text-input id="name" class="block mt-1 w-full" type="text" name="name" :value="old('name')" required autofocus autocomplete="name" />
-            <x-input-error :messages="$errors->get('name')" class="mt-2" />
-        </div>
+    <style>
 
-        <!-- Email Address -->
-        <div class="mt-4">
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
+        .auth-page {
 
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
+            --paper: #FAF7F1;
+            --paper-raised: #FFFFFF;
+            --ink: #23241F;
+            --ink-soft: #6B6A63;
+            --ink-faint: #A6A399;
+            --line: #E7E1D3;
 
-            <x-text-input id="password" class="block mt-1 w-full"
+            --brass: #9C6B30;
+            --brass-soft: #F1E6D2;
+
+            --font-display: 'Fraunces', Georgia, serif;
+            --font-body: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+
+            min-height: 100vh;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            padding: 40px 20px;
+
+            background: var(--paper);
+
+            color: var(--ink);
+
+            font-family: var(--font-body);
+        }
+
+
+        .auth-container {
+
+            width: 100%;
+
+            max-width: 420px;
+        }
+
+
+        .brand {
+
+            margin-bottom: 30px;
+
+            text-align: center;
+        }
+
+
+        .brand-eyebrow {
+
+            margin-bottom: 8px;
+
+            color: var(--brass);
+
+            font-size: 10px;
+
+            font-weight: 700;
+
+            letter-spacing: 0.14em;
+
+            text-transform: uppercase;
+        }
+
+
+        .brand-title {
+
+            margin: 0;
+
+            font-family: var(--font-display);
+
+            font-size: 32px;
+
+            font-weight: 600;
+
+            letter-spacing: -0.02em;
+        }
+
+
+        .brand-description {
+
+            max-width: 340px;
+
+            margin: 9px auto 0;
+
+            color: var(--ink-soft);
+
+            font-size: 13px;
+
+            line-height: 1.6;
+        }
+
+
+        .auth-card {
+
+            padding: 28px;
+
+            background: var(--paper-raised);
+
+            border: 1px solid var(--line);
+
+            border-radius: 14px;
+
+            box-shadow: 0 10px 30px rgba(35, 36, 31, 0.05);
+        }
+
+
+        .auth-heading {
+
+            margin-bottom: 22px;
+        }
+
+
+        .auth-heading h2 {
+
+            margin: 0;
+
+            font-family: var(--font-display);
+
+            font-size: 22px;
+
+            font-weight: 600;
+        }
+
+
+        .auth-heading p {
+
+            margin: 5px 0 0;
+
+            color: var(--ink-soft);
+
+            font-size: 12px;
+        }
+
+
+        .form-group {
+
+            margin-bottom: 17px;
+        }
+
+
+        .form-label {
+
+            display: block;
+
+            margin-bottom: 7px;
+
+            color: var(--ink-soft);
+
+            font-size: 11px;
+
+            font-weight: 600;
+        }
+
+
+        .form-input {
+
+            width: 100%;
+
+            box-sizing: border-box;
+
+            height: 44px;
+
+            padding: 10px 13px;
+
+            border: 1px solid var(--line);
+
+            border-radius: 8px;
+
+            background: var(--paper);
+
+            color: var(--ink);
+
+            font-family: var(--font-body);
+
+            font-size: 13px;
+        }
+
+
+        .form-input:focus {
+
+            outline: none;
+
+            border-color: var(--brass);
+
+            box-shadow: 0 0 0 3px var(--brass-soft);
+
+            background: var(--paper-raised);
+        }
+
+
+        .error-message {
+
+            margin-top: 6px;
+
+            color: #9A4A3A;
+
+            font-size: 11px;
+        }
+
+
+        .auth-actions {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            gap: 12px;
+
+            margin-top: 22px;
+        }
+
+
+        .login-link {
+
+            color: var(--ink-soft);
+
+            font-size: 11px;
+
+            text-decoration: none;
+        }
+
+
+        .login-link:hover {
+
+            color: var(--brass);
+        }
+
+
+        .submit-btn {
+
+            height: 42px;
+
+            padding: 0 18px;
+
+            border: 1px solid var(--ink);
+
+            border-radius: 8px;
+
+            background: var(--ink);
+
+            color: var(--paper);
+
+            font-family: var(--font-body);
+
+            font-size: 12px;
+
+            font-weight: 600;
+
+            cursor: pointer;
+
+            transition:
+                background 0.15s ease,
+                color 0.15s ease;
+        }
+
+
+        .submit-btn:hover {
+
+            background: var(--paper);
+
+            color: var(--ink);
+        }
+
+
+        .auth-footer {
+
+            margin-top: 20px;
+
+            text-align: center;
+
+            color: var(--ink-faint);
+
+            font-size: 11px;
+        }
+
+
+        .auth-footer a {
+
+            color: var(--brass);
+
+            font-weight: 600;
+
+            text-decoration: none;
+        }
+
+
+        .auth-footer a:hover {
+
+            text-decoration: underline;
+        }
+
+
+        @media (max-width: 480px) {
+
+            .auth-page {
+
+                padding: 25px 16px;
+            }
+
+            .brand-title {
+
+                font-size: 28px;
+            }
+
+            .auth-card {
+
+                padding: 22px;
+            }
+
+            .auth-actions {
+
+                align-items: stretch;
+
+                flex-direction: column-reverse;
+            }
+
+            .submit-btn {
+
+                width: 100%;
+            }
+
+        }
+
+    </style>
+
+
+    <div class="auth-page">
+
+        <div class="auth-container">
+
+
+            {{-- Brand --}}
+
+            <div class="brand">
+
+                <div class="brand-eyebrow">
+                    AI Workspace
+                </div>
+
+                <h1 class="brand-title">
+                    AI Workspace Assistant
+                </h1>
+
+                <p class="brand-description">
+                    Create your workspace account and start
+                    working with your documents and AI conversations.
+                </p>
+
+            </div>
+
+
+            {{-- Register Card --}}
+
+            <div class="auth-card">
+
+                <div class="auth-heading">
+
+                    <h2>
+                        Create your account
+                    </h2>
+
+                    <p>
+                        Join AI Workspace Assistant.
+                    </p>
+
+                </div>
+
+
+                <form
+                    method="POST"
+                    action="{{ route('register') }}"
+                >
+
+                    @csrf
+
+
+                    {{-- Name --}}
+
+                    <div class="form-group">
+
+                        <label
+                            for="name"
+                            class="form-label"
+                        >
+                            Name
+                        </label>
+
+                        <input
+                            id="name"
+                            class="form-input"
+                            type="text"
+                            name="name"
+                            value="{{ old('name') }}"
+                            required
+                            autofocus
+                            autocomplete="name"
+                        >
+
+                        @error('name')
+
+                            <div class="error-message">
+                                {{ $message }}
+                            </div>
+
+                        @enderror
+
+                    </div>
+
+
+                    {{-- Email --}}
+
+                    <div class="form-group">
+
+                        <label
+                            for="email"
+                            class="form-label"
+                        >
+                            Email
+                        </label>
+
+                        <input
+                            id="email"
+                            class="form-input"
+                            type="email"
+                            name="email"
+                            value="{{ old('email') }}"
+                            required
+                            autocomplete="username"
+                        >
+
+                        @error('email')
+
+                            <div class="error-message">
+                                {{ $message }}
+                            </div>
+
+                        @enderror
+
+                    </div>
+
+
+                    {{-- Password --}}
+
+                    <div class="form-group">
+
+                        <label
+                            for="password"
+                            class="form-label"
+                        >
+                            Password
+                        </label>
+
+                        <input
+                            id="password"
+                            class="form-input"
                             type="password"
                             name="password"
-                            required autocomplete="new-password" />
+                            required
+                            autocomplete="new-password"
+                        >
 
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
+                        @error('password')
 
-        <!-- Confirm Password -->
-        <div class="mt-4">
-            <x-input-label for="password_confirmation" :value="__('Confirm Password')" />
+                            <div class="error-message">
+                                {{ $message }}
+                            </div>
 
-            <x-text-input id="password_confirmation" class="block mt-1 w-full"
+                        @enderror
+
+                    </div>
+
+
+                    {{-- Confirm Password --}}
+
+                    <div class="form-group">
+
+                        <label
+                            for="password_confirmation"
+                            class="form-label"
+                        >
+                            Confirm Password
+                        </label>
+
+                        <input
+                            id="password_confirmation"
+                            class="form-input"
                             type="password"
-                            name="password_confirmation" required autocomplete="new-password" />
+                            name="password_confirmation"
+                            required
+                            autocomplete="new-password"
+                        >
 
-            <x-input-error :messages="$errors->get('password_confirmation')" class="mt-2" />
+                        @error('password_confirmation')
+
+                            <div class="error-message">
+                                {{ $message }}
+                            </div>
+
+                        @enderror
+
+                    </div>
+
+
+                    {{-- Actions --}}
+
+                    <div class="auth-actions">
+
+                        <a
+                            class="login-link"
+                            href="{{ route('login') }}"
+                        >
+                            Already have an account?
+                        </a>
+
+
+                        <button
+                            type="submit"
+                            class="submit-btn"
+                        >
+                            Create account
+                        </button>
+
+                    </div>
+
+                </form>
+
+
+                <div class="auth-footer">
+
+                    AI Workspace Assistant
+
+                </div>
+
+            </div>
+
+
         </div>
 
-        <div class="flex items-center justify-end mt-4">
-            <a class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800" href="{{ route('login') }}">
-                {{ __('Already registered?') }}
-            </a>
+    </div>
 
-            <x-primary-button class="ms-4">
-                {{ __('Register') }}
-            </x-primary-button>
-        </div>
-    </form>
 </x-guest-layout>

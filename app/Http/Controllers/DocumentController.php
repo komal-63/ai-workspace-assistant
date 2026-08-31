@@ -44,7 +44,7 @@ class DocumentController extends Controller
 
         $request->validate([
             'title' => ['required', 'string', 'max:255'],
-            'file' => ['required', 'file', 'mimes:txt,pdf', 'max:10240'],
+            'file' => ['required', 'file', 'mimes:txt,pdf,jpg,jpeg,png,webp', 'max:10240'],
         ]);
 
         $file = $request->file('file');
@@ -84,5 +84,18 @@ class DocumentController extends Controller
         return redirect()
             ->route('documents.index')
             ->with('success', 'Document deleted successfully.');
+    }
+
+    public function view(Document $document)
+    {
+        Gate::authorize('view', $document);
+
+        $path = storage_path('app/private/' . $document->file_path);
+
+        abort_unless(file_exists($path), 404);
+
+        return response()->file($path, [
+            'Content-Type' => $document->mime_type,
+        ]);
     }
 }
