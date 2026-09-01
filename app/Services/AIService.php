@@ -16,9 +16,15 @@ class AIService
                 ->post('https://api.groq.com/openai/v1/chat/completions', [
                     'model' => config('services.groq.model'),
                     'messages' => $messages,
+                    'temperature' => 0,
                 ]);
 
             $response->throw();
+
+            \Illuminate\Support\Facades\Log::info('Groq raw response debug', [
+                'status' => $response->status(),
+                'body' => $response->json(),
+            ]);
 
             $content = $response->json('choices.0.message.content');
 
@@ -80,43 +86,131 @@ class AIService
             ]);
     }
 
-    public function generateAnswer(
-    string $question,
-    array $context,
-    array $history = []
-): string
-{
-    $contextText = collect($context)
-        ->pluck('payload.content')
-        ->filter()
-        ->implode("\n\n");
+    public function generateGroundedAnswer(
+        string $question,
+        array $context,
+        array $history = []
+    ): array
+    {
+        $contextText = collect($context)
+            ->pluck('payload.content')
+            ->filter()
+            ->implode("\n\n");
 
-    $messages = $history;
+        $historyText = collect($history)
+            ->map(function ($message) {
+                return $message['role'] . ': ' . $message['content'];
+            })
+            ->implode("\n");
 
-    $messages[] = [
-        'role' => 'system',
-        'content' => <<<PROMPT
-You are an AI assistant for a workspace.
+        $prompt = <<<PROMPT
+        You are a grounded AI assistant for a document-based workspace.
 
-Use the conversation history and the provided document context
-to answer the user's current question.
+        Your job is to answer the user's question using ONLY the provided
+        document context for document-specific information.
 
-If the answer is not present in the provided document context
-and the question specifically depends on the document,
-say that the information is not available in the provided documents.
+        Use the conversation history only to understand follow-up references
+        such as:
+        "he", "she", "his", "her", "that", "this", "it",
+        "that designation", "that employee", etc.
 
-Document context:
-{$contextText}
-PROMPT,
-    ];
+        You must classify the answer into one of these statuses:
 
-    $messages[] = [
-        'role' => 'user',
-        'content' => $question,
-    ];
+        FULL
+        - The document contains enough information to directly answer the question.
 
-    return $this->request($messages);
-}
+        PARTIAL
+        - The document contains some relevant information, but does not contain
+        enough detail to fully answer the question.
+
+        NONE
+        - The document does not contain information that answers or meaningfully
+        relates to the requested information.
+
+        Important rules:
+
+        1. Never invent facts.
+
+        2. Never add general knowledge to fill missing document information.
+
+        3. If status is FULL:
+        answer directly using the document.
+
+        4. If status is PARTIAL:
+        provide only the information available in the document and clearly
+        explain what additional detail is not available.
+
+        5. If status is NONE:
+        the answer must be:
+        "I couldn't find this information in your uploaded documents."
+
+        6. Do not describe typical duties, responsibilities, salary,
+        qualifications, or other details unless they actually appear
+        in the provided document context.
+
+        7. Return ONLY valid JSON.
+
+        Use exactly this structure:
+
+        {
+            "status": "FULL",
+            "answer": "Your answer here"
+        }
+
+        Conversation history:
+
+        {$historyText}
+
+        Current question:
+
+        {$question}
+
+        Document context:
+
+        {$contextText}
+        PROMPT;
+
+        $response = $this->request([
+            [
+                'role' => 'user',
+                'content' => $prompt,
+            ],
+        ]);
+
+        // Sometimes LLMs return JSON inside ```json blocks.
+        $cleanResponse = trim($response);
+
+        $cleanResponse = preg_replace(
+            '/^```(?:json)?\s*|\s*```$/i',
+            '',
+            $cleanResponse
+        );
+
+        $result = json_decode($cleanResponse, true);
+
+        if (
+            !is_array($result) ||
+            !isset($result['status']) ||
+            !isset($result['answer'])
+        ) {
+            throw new AIServiceException(
+                'AI returned an invalid grounded response.'
+            );
+        }
+
+        $status = strtoupper(trim($result['status']));
+
+        if (!in_array($status, ['FULL', 'PARTIAL', 'NONE'], true)) {
+            throw new AIServiceException(
+                'AI returned an invalid relevance status.'
+            );
+        }
+
+        return [
+            'status' => $status,
+            'answer' => trim($result['answer']),
+        ];
+    }
 
     public function generateGeneralAnswer(
         string $question,

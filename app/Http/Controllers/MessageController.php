@@ -53,8 +53,8 @@ class MessageController extends Controller
         $question = $request->content;
         $messages = $conversation->messages()
             ->oldest()
-            ->skip($conversation->summary_message_count)
             ->get()
+            ->skip($conversation->summary_message_count)
             ->slice(0, -1)
             ->map(function ($message) {
                 return [
