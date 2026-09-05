@@ -1,20 +1,40 @@
 <?php
 
 namespace App\Services;
+
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Http;
 
 class QdrantService
 {
-    private string $baseUrl = 'http://127.0.0.1:6333';
+    private string $baseUrl;
+    private ?string $apiKey;
+
+    public function __construct()
+    {
+        $this->baseUrl = rtrim(
+            config('services.qdrant.url'),
+            '/'
+        );
+
+        $this->apiKey = config('services.qdrant.api_key');
+    }
+
+    private function client()
+    {
+        return Http::timeout(30)
+            ->withHeaders([
+                'api-key' => $this->apiKey,
+            ]);
+    }
 
     public function store(
-    int $chunkId,
-    array $vector,
-    array $payload
+        int $chunkId,
+        array $vector,
+        array $payload
     ): void {
         try {
-            Http::timeout(30)
+            $this->client()
                 ->put(
                     $this->baseUrl . '/collections/document_chunks/points',
                     [
@@ -42,13 +62,13 @@ class QdrantService
     }
 
     public function search(
-    array $vector,
-    int $userId,
-    int $limit = 5,
-    float $scoreThreshold = 0.20
+        array $vector,
+        int $userId,
+        int $limit = 5,
+        float $scoreThreshold = 0.20
     ): array {
         try {
-            $response = Http::timeout(30)
+            $response = $this->client()
                 ->post(
                     $this->baseUrl . '/collections/document_chunks/points/search',
                     [
@@ -88,7 +108,7 @@ class QdrantService
     public function deleteByDocument(int $documentId): void
     {
         try {
-            Http::timeout(30)
+            $this->client()
                 ->post(
                     $this->baseUrl . '/collections/document_chunks/points/delete',
                     [
