@@ -139,98 +139,230 @@ class RAGService
     }
 
     public function isDocumentQuestion(
-            string $question,
-            array $history = []
-        ): bool
-            {
-                $historyText = collect($history)
-            ->map(function ($message) {
-                return $message['role'] . ': ' . $message['content'];
-            })
-            ->implode("\n");
+    string $question,
+    array $history = []
+): bool {
 
-              $prompt = <<<PROMPT
-                Determine whether the user's current question is asking about information
-                that should come from an uploaded document.
+    /*
+    |--------------------------------------------------------------------------
+    | 1. Deterministic routing for obvious document-specific questions
+    |--------------------------------------------------------------------------
+    |
+    | These questions clearly ask for personal/employee facts that would
+    | normally come from an uploaded document.
+    |
+    */
 
-                Use the conversation history to understand follow-up questions.
+    $documentFactPatterns = [
+        '/\bwhat(?:\'s| is) my designation\b/i',
+        '/\bwhat(?:\'s| is) my department\b/i',
+        '/\bwhat(?:\'s| is) my salary\b/i',
+        '/\bwhat(?:\'s| is) my employee id\b/i',
+        '/\bwhat(?:\'s| is) my employee number\b/i',
+        '/\bwhat(?:\'s| is) my passport number\b/i',
+        '/\bwhat(?:\'s| is) my job title\b/i',
+        '/\bwhat(?:\'s| is) my joining date\b/i',
+        '/\bwhat(?:\'s| is) my date of joining\b/i',
 
-                If the current question is a follow-up to a topic that was being discussed
-                from an uploaded document, classify it as DOCUMENT.
+        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? designation\b/i',
+        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? department\b/i',
+        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? role\b/i',
+        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? salary\b/i',
+        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? employee id\b/i',
+        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? passport number\b/i',
+    ];
 
-                Questions containing references such as:
-                "that designation", "that employee", "his role", "her salary",
-                "what about it", "explain that", or similar follow-up references
-                should use the conversation history to determine whether they refer
-                to document information.
+    foreach ($documentFactPatterns as $pattern) {
 
-                Do not classify a follow-up as GENERAL merely because the current
-                question can also be answered using general knowledge.
+        if (preg_match($pattern, $question)) {
 
-                If the user is providing or stating personal information rather than
-                asking to retrieve it from a document, classify it as GENERAL.
+            Log::info('Document question classification', [
+                'question' => $question,
+                'classification' => 'DOCUMENT',
+                'reason' => 'direct_document_fact_match',
+            ]);
 
-                Examples of user-provided information:
-
-                "My passport number is 2341."
-                "My employee ID is EMP-100."
-                "My designation is Manager."
-                "My phone number is 9876543210."
-
-                These are GENERAL because the user is telling you information in the
-                conversation, not asking you to retrieve information from an uploaded
-                document.
-
-                However, if the user asks for information that should come from an
-                uploaded document, classify it as DOCUMENT.
-
-                Return ONLY one word:
-                DOCUMENT
-                or
-                GENERAL
-
-                Conversation history:
-                {$historyText}
-
-                Examples:
-
-                Question: What is the employee's designation?
-                Answer: DOCUMENT
-
-                Question: What is the employee's passport number?
-                Answer: DOCUMENT
-
-                Question: What is the capital of France?
-                Answer: GENERAL
-
-                Question: Explain Laravel dependency injection.
-                Answer: GENERAL
-
-                Example conversation:
-                User: My name is Komal.
-                Assistant: Nice to meet you, Komal.
-                Current question: What is my name?
-                Answer: GENERAL
-
-                Question: My passport number is 2341.
-                Answer: GENERAL
-
-                Question: What is the employee's passport number?
-                Answer: DOCUMENT
-
-                Current question:
-                {$question}
-                PROMPT;
-
-                $response = $this->aiService->generateResponse([
-                    [
-                        'role' => 'user',
-                        'content' => $prompt,
-                    ],
-                ]);
-
-                return strtoupper(trim($response)) === 'DOCUMENT';
+            return true;
+        }
     }
+
+    /*
+    |--------------------------------------------------------------------------
+    | 2. Build conversation history
+    |--------------------------------------------------------------------------
+    */
+
+    $historyText = collect($history)
+        ->map(function ($message) {
+            return $message['role'] . ': ' . $message['content'];
+        })
+        ->implode("\n");
+
+    /*
+    |--------------------------------------------------------------------------
+    | 3. Let AI classify ambiguous questions
+    |--------------------------------------------------------------------------
+    */
+
+    $prompt = <<<PROMPT
+You are a routing classifier for an AI workspace that supports uploaded documents
+and normal general conversation.
+
+Your task is to decide whether the CURRENT QUESTION should be answered using
+uploaded documents.
+
+Return ONLY one word:
+
+DOCUMENT
+
+or
+
+GENERAL
+
+RULES:
+
+1. Classify as DOCUMENT when the user is asking to retrieve factual information
+that may exist inside their uploaded documents.
+
+Examples include:
+
+- What is my designation?
+- What is my employee ID?
+- What is my salary?
+- What is my department?
+- What is my passport number?
+- What is the employee's designation?
+- What is the employee's role?
+- What is her salary?
+- What does the document say about my designation?
+
+These should be DOCUMENT unless the requested information was explicitly supplied
+by the user in the conversation history.
+
+2. Classify as GENERAL when the question can naturally be answered without
+uploaded documents.
+
+Examples:
+
+- What is Laravel?
+- Explain dependency injection.
+- What is the capital of France?
+- How does Redis work?
+- What does designation mean?
+- What does an Admin Executive usually do?
+
+3. If the user explicitly provided a fact in the conversation history and later
+asks for that same fact, classify as GENERAL because conversation history already
+contains the answer.
+
+Example:
+
+Conversation:
+User: My designation is Manager.
+Assistant: Okay.
+
+Current question:
+What is my designation?
+
+Answer:
+GENERAL
+
+4. Do NOT assume that questions using "my", "me", "I", "his", "her", or similar
+words are automatically GENERAL.
+
+For example:
+
+"What is my designation?"
+
+should be DOCUMENT if the designation was not already explicitly stated in the
+conversation.
+
+5. Follow-up questions about previously retrieved document information must remain
+DOCUMENT.
+
+Example:
+
+Conversation:
+User: What is the employee's designation?
+Assistant: Admin Executive.
+
+Current question:
+What about his role?
+
+Answer:
+DOCUMENT
+
+Another example:
+
+Conversation:
+User: What is the employee's designation?
+Assistant: Admin Executive.
+
+Current question:
+Explain that designation.
+
+Answer:
+DOCUMENT
+
+6. If the user is STATING information rather than ASKING for information,
+classify as GENERAL.
+
+Examples:
+
+"My designation is Manager."
+"My employee ID is EMP-100."
+"My phone number is 9876543210."
+
+Answer:
+GENERAL
+
+Conversation history:
+{$historyText}
+
+Current question:
+{$question}
+
+Return ONLY:
+DOCUMENT
+or
+GENERAL
+PROMPT;
+
+    /*
+    |--------------------------------------------------------------------------
+    | 4. Get AI classification
+    |--------------------------------------------------------------------------
+    */
+
+    $response = $this->aiService->generateResponse([
+        [
+            'role' => 'user',
+            'content' => $prompt,
+        ],
+    ]);
+
+    $result = strtoupper(trim($response));
+
+    /*
+    |--------------------------------------------------------------------------
+    | 5. Log classification
+    |--------------------------------------------------------------------------
+    */
+
+    Log::info('Document question classification', [
+        'question' => $question,
+        'classification' => $result,
+        'reason' => 'ai_classifier',
+    ]);
+
+    /*
+    |--------------------------------------------------------------------------
+    | 6. Final routing decision
+    |--------------------------------------------------------------------------
+    */
+
+    return $result === 'DOCUMENT';
+}
 
     public function rewriteQuestionForRetrieval(
         string $question,
