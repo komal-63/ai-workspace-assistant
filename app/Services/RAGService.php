@@ -154,22 +154,33 @@ class RAGService
     */
 
     $documentFactPatterns = [
-        '/\bwhat(?:\'s| is) my designation\b/i',
-        '/\bwhat(?:\'s| is) my department\b/i',
-        '/\bwhat(?:\'s| is) my salary\b/i',
-        '/\bwhat(?:\'s| is) my employee id\b/i',
-        '/\bwhat(?:\'s| is) my employee number\b/i',
-        '/\bwhat(?:\'s| is) my passport number\b/i',
-        '/\bwhat(?:\'s| is) my job title\b/i',
-        '/\bwhat(?:\'s| is) my joining date\b/i',
-        '/\bwhat(?:\'s| is) my date of joining\b/i',
 
-        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? designation\b/i',
-        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? department\b/i',
-        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? role\b/i',
-        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? salary\b/i',
-        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? employee id\b/i',
-        '/\bwhat(?:\'s| is) (?:the )?employee(?:\'s)? passport number\b/i',
+        // Personal / employee fact questions
+        '/\bwhat(?:\'s| is)\s+my\s+designation\b/i',
+        '/\bwhat(?:\'s| is)\s+my\s+department\b/i',
+        '/\bwhat(?:\'s| is)\s+my\s+salary\b/i',
+        '/\bwhat(?:\'s| is)\s+my\s+employee\s+id\b/i',
+        '/\bwhat(?:\'s| is)\s+my\s+employee\s+number\b/i',
+        '/\bwhat(?:\'s| is)\s+my\s+passport\s+number\b/i',
+        '/\bwhat(?:\'s| is)\s+my\s+job\s+title\b/i',
+        '/\bwhat(?:\'s| is)\s+my\s+joining\s+date\b/i',
+        '/\bwhat(?:\'s| is)\s+my\s+date\s+of\s+joining\b/i',
+        '/\bwhat(?:\'s| is)\s+my\s+shift\s+timing\b/i',
+
+        // Short natural questions
+        '/\bmy\s+designation\s*\??\s*$/i',
+        '/\bmy\s+department\s*\??\s*$/i',
+        '/\bmy\s+salary\s*\??\s*$/i',
+        '/\bmy\s+employee\s+id\s*\??\s*$/i',
+        '/\bmy\s+passport\s+number\s*\??\s*$/i',
+        '/\bmy\s+shift\s+timing\s*\??\s*$/i',
+
+        // Employee document questions
+        '/\bwhat(?:\'s| is)\s+(?:the\s+)?employee(?:\'s)?\s+designation\b/i',
+        '/\bwhat(?:\'s| is)\s+(?:the\s+)?employee(?:\'s)?\s+department\b/i',
+        '/\bwhat(?:\'s| is)\s+(?:the\s+)?employee(?:\'s)?\s+role\b/i',
+        '/\bwhat(?:\'s| is)\s+(?:the\s+)?employee(?:\'s)?\s+salary\b/i',
+        '/\bwhat(?:\'s| is)\s+(?:the\s+)?employee(?:\'s)?\s+shift\s+timing\b/i',
     ];
 
     foreach ($documentFactPatterns as $pattern) {
