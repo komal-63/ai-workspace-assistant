@@ -24,6 +24,7 @@ class RAGService
             $userId,
             5
         );
+   
     }
 
     public function answer(
@@ -81,6 +82,23 @@ class RAGService
             $retrievalQuestion,
             $userId
         );
+
+             Log::info('RAG retrieved context', [
+            'question' => $retrievalQuestion,
+
+            'results' => collect($context)->map(function ($item) {
+                return [
+                    'score' => $item['score'] ?? null,
+                    'document_id' => $item['payload']['document_id'] ?? null,
+                    'chunk_id' => $item['payload']['chunk_id'] ?? null,
+                    'content' => substr(
+                        $item['payload']['content'] ?? '',
+                        0,
+                        300
+                    ),
+                ];
+            })->toArray(),
+        ]);
 
         /*
         |--------------------------------------------------------------------------
