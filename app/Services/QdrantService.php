@@ -62,48 +62,65 @@ class QdrantService
     }
 
     public function search(
-        array $vector,
-        int $userId,
-        int $limit = 5,
-        float $scoreThreshold = 0.20
-    ): array {
-        try {
-            $response = $this->client()
-                ->post(
-                    $this->baseUrl . '/collections/document_chunks/points/search',
-                    [
-                        'vector' => $vector,
-                        'limit' => $limit,
-                        'with_payload' => true,
-                        'score_threshold' => $scoreThreshold,
+    array $vector,
+    int $userId,
+    int $limit = 10,
+    float $scoreThreshold = 0.0
+): array {
+    try {
 
-                        'filter' => [
-                            'must' => [
-                                [
-                                    'key' => 'user_id',
-                                    'match' => [
-                                        'value' => $userId,
-                                    ],
+        $response = $this->client()
+            ->post(
+                $this->baseUrl . '/collections/document_chunks/points/search',
+                [
+                    'vector' => $vector,
+
+                    // Temporary debugging:
+                    // retrieve more chunks so we can inspect ranking.
+                    'limit' => $limit,
+
+                    'with_payload' => true,
+
+                    // Temporary debugging:
+                    // don't remove low-scoring chunks yet.
+                    'score_threshold' => $scoreThreshold,
+
+                    'filter' => [
+                        'must' => [
+                            [
+                                'key' => 'user_id',
+                                'match' => [
+                                    'value' => $userId,
                                 ],
                             ],
                         ],
-                    ]
-                );
+                    ],
+                ]
+            );
 
-            $response->throw();
+        $response->throw();
 
-            return $response->json('result', []);
+        $results = $response->json('result', []);
 
-        } catch (\Throwable $exception) {
+        Log::info('Qdrant search results', [
+            'user_id' => $userId,
+            'requested_limit' => $limit,
+            'score_threshold' => $scoreThreshold,
+            'result_count' => count($results),
+        ]);
 
-            Log::error('Qdrant search failed.', [
-                'user_id' => $userId,
-                'error' => $exception->getMessage(),
-            ]);
+        return $results;
 
-            throw $exception;
-        }
+    } catch (\Throwable $exception) {
+
+        Log::error('Qdrant search failed.', [
+            'user_id' => $userId,
+            'error' => $exception->getMessage(),
+        ]);
+
+        throw $exception;
     }
+}
 
     public function deleteByDocument(int $documentId): void
     {

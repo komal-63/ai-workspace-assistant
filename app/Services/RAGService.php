@@ -19,10 +19,11 @@ class RAGService
     {
         $questionVector = $this->embeddingService->generate($question);
 
-        return $this->qdrantService->search(
+      return $this->qdrantService->search(
             $questionVector,
             $userId,
-            5
+            10,
+            0.0
         );
    
     }
