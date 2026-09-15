@@ -180,6 +180,36 @@
             font-size: 13px;
         }
 
+        .password-input-wrap {
+            position: relative;
+        }
+
+        .password-toggle {
+            position: absolute;
+            top: 50%;
+            right: 10px;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            color: var(--ink-soft);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 6px;
+        }
+
+        .password-toggle:hover,
+        .password-toggle:focus-visible {
+            background: var(--brass-soft);
+            color: var(--ink);
+            outline: none;
+        }
+
+        .password-toggle[aria-pressed="true"] {
+            color: var(--brass);
+        }
+
 
         .form-input:focus {
 
@@ -457,14 +487,25 @@
                             Password
                         </label>
 
-                        <input
-                            id="password"
-                            class="form-input"
-                            type="password"
-                            name="password"
-                            required
-                            autocomplete="current-password"
-                        >
+                        <div class="password-input-wrap">
+                            <input
+                                id="password"
+                                class="form-input"
+                                type="password"
+                                name="password"
+                                required
+                                autocomplete="current-password"
+                            >
+                            <button
+                                type="button"
+                                class="password-toggle"
+                                data-password-toggle="password"
+                                aria-label="Show password"
+                                aria-pressed="false"
+                            >
+                                Show
+                            </button>
+                        </div>
 
                         @error('password')
 
@@ -538,5 +579,24 @@
         </div>
 
     </div>
+
+    <script>
+        document.querySelectorAll('[data-password-toggle]').forEach(function (toggleButton) {
+            const targetId = toggleButton.dataset.passwordToggle;
+            const targetField = document.getElementById(targetId);
+
+            if (!targetField) {
+                return;
+            }
+
+            toggleButton.addEventListener('click', function () {
+                const isHidden = targetField.type === 'password';
+                targetField.type = isHidden ? 'text' : 'password';
+                toggleButton.textContent = isHidden ? 'Hide' : 'Show';
+                toggleButton.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
+                toggleButton.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+            });
+        });
+    </script>
 
 </x-guest-layout>

@@ -2,12 +2,12 @@
 
 namespace App\Services;
 
-use Illuminate\Support\Facades\Http;
 use App\Exceptions\AIServiceException;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 
 class AIService
 {
-
     private function request(array $messages): string
     {
         try {
@@ -21,25 +21,22 @@ class AIService
 
             $response->throw();
 
-            \Illuminate\Support\Facades\Log::info('Groq raw response debug', [
-                'status' => $response->status(),
-                'body' => $response->json(),
-            ]);
+            if (config('app.debug')) {
+                Log::info('Groq raw response debug', [
+                    'status' => $response->status(),
+                    'body' => $response->json(),
+                ]);
+            }
 
             $content = $response->json('choices.0.message.content');
 
             if (!is_string($content) || trim($content) === '') {
-                throw new \RuntimeException(
-                    'Groq returned an invalid or empty response.'
-                );
+                throw new \RuntimeException('Groq returned an invalid or empty response.');
             }
 
             return $content;
-
-        } 
-        catch (\Throwable $exception) {
-
-            \Illuminate\Support\Facades\Log::error('Groq API request failed.', [
+        } catch (\Throwable $exception) {
+            Log::error('Groq API request failed.', [
                 'error' => $exception->getMessage(),
             ]);
 
@@ -59,6 +56,7 @@ class AIService
     public function generateSummary(string $existingSummary, array $messages): string
     {
         $conversationText = collect($messages)
+            ->take(-12)
             ->map(function ($message) {
                 return $message['role'] . ': ' . $message['content'];
             })
@@ -78,12 +76,12 @@ class AIService
         Do not include unnecessary details.
         PROMPT;
 
-                return $this->request([
-                [
-                    'role' => 'user',
-                    'content' => $prompt,
-                ],
-            ]);
+        return $this->request([
+            [
+                'role' => 'user',
+                'content' => $prompt,
+            ],
+        ]);
     }
 
     public function generateGroundedAnswer(
@@ -93,11 +91,13 @@ class AIService
     ): array
     {
         $contextText = collect($context)
-            ->pluck('payload.content')
+            ->take(5)
+            ->map(fn ($item) => $item['payload']['content'] ?? '')
             ->filter()
             ->implode("\n\n");
 
         $historyText = collect($history)
+            ->take(-6)
             ->map(function ($message) {
                 return $message['role'] . ': ' . $message['content'];
             })
@@ -106,109 +106,69 @@ class AIService
         $prompt = <<<PROMPT
         You are a grounded AI assistant for a document-based workspace.
 
-        Your job is to answer the user's question using ONLY the provided
-        document context for document-specific information.
+        Answer the user using only the provided document context.
+        Use conversation history only to interpret follow-up references.
 
-        Use the conversation history only to understand follow-up references
-        such as:
-        "he", "she", "his", "her", "that", "this", "it",
-        "that designation", "that employee", etc.
-
-        You must classify the answer into one of these statuses:
-
-        FULL
-        - The document contains enough information to directly answer the question.
-
-        PARTIAL
-        - The document contains some relevant information, but does not contain
-        enough detail to fully answer the question.
-
-        NONE
-        - The document does not contain information that answers or meaningfully
-        relates to the requested information.
-
-        Important rules:
-
-        1. Never invent facts.
-
-        2. Never add general knowledge to fill missing document information.
-
-        3. If status is FULL:
-        answer directly using the document.
-
-        4. If status is PARTIAL:
-        provide only the information available in the document and clearly
-        explain what additional detail is not available.
-
-        5. If status is NONE:
-        the answer must be:
-        "I couldn't find this information in your uploaded documents."
-
-        6. Do not describe typical duties, responsibilities, salary,
-        qualifications, or other details unless they actually appear
-        in the provided document context.
-
-        7. Return ONLY valid JSON.
-
-        Use exactly this structure:
-
+        Return ONLY valid JSON with this exact structure:
         {
             "status": "FULL",
-            "answer": "Your answer here"
+            "answer": "Your answer here",
+            "supporting_document_id": 123,
+            "supporting_chunk_id": 456
         }
 
-        Conversation history:
+        Rules:
+        1. status must be FULL, PARTIAL, or NONE.
+        2. FULL: the document clearly answers the question.
+        3. PARTIAL: limited relevant information is present but incomplete.
+        4. NONE: answer must be exactly "I couldn't find this information in your uploaded documents." and the supporting IDs should be null.
+        5. Never invent facts.
+        6. If you include supporting IDs, they must match the document and chunk IDs present in the context exactly.
+        7. If the answer is not supported by the provided context, return NONE.
 
+        Conversation history:
         {$historyText}
 
         Current question:
-
         {$question}
 
         Document context:
-
         {$contextText}
         PROMPT;
 
         $response = $this->request([
+            [
+                'role' => 'system',
+                'content' => 'You are a precise grounded document-answering assistant. Return strict JSON only.',
+            ],
             [
                 'role' => 'user',
                 'content' => $prompt,
             ],
         ]);
 
-        // Sometimes LLMs return JSON inside ```json blocks.
         $cleanResponse = trim($response);
-
-        $cleanResponse = preg_replace(
-            '/^```(?:json)?\s*|\s*```$/i',
-            '',
-            $cleanResponse
-        );
-
+        $cleanResponse = preg_replace('/^```(?:json)?\s*|\s*```$/i', '', $cleanResponse);
         $result = json_decode($cleanResponse, true);
 
-        if (
-            !is_array($result) ||
-            !isset($result['status']) ||
-            !isset($result['answer'])
-        ) {
-            throw new AIServiceException(
-                'AI returned an invalid grounded response.'
-            );
+        if (!is_array($result) || !isset($result['status']) || !isset($result['answer'])) {
+            throw new AIServiceException('AI returned an invalid grounded response.');
         }
 
-        $status = strtoupper(trim($result['status']));
-
+        $status = strtoupper(trim((string) $result['status']));
         if (!in_array($status, ['FULL', 'PARTIAL', 'NONE'], true)) {
-            throw new AIServiceException(
-                'AI returned an invalid relevance status.'
-            );
+            throw new AIServiceException('AI returned an invalid relevance status.');
         }
 
         return [
             'status' => $status,
-            'answer' => trim($result['answer']),
+            'answer' => trim((string) $result['answer']),
+            'supporting_document_id' => isset($result['supporting_document_id']) && is_numeric($result['supporting_document_id'])
+                ? (int) $result['supporting_document_id']
+                : null,
+            'supporting_chunk_id' => isset($result['supporting_chunk_id']) && is_numeric($result['supporting_chunk_id'])
+                ? (int) $result['supporting_chunk_id']
+                : null,
         ];
     }
 
@@ -217,12 +177,19 @@ class AIService
         array $history = []
     ): string
     {
-        $messages = $history;
-
-        $messages[] = [
-            'role' => 'system',
-            'content' => 'You are an AI assistant for a workspace. Answer the user naturally and accurately. Use the conversation history when it is relevant.',
+        $messages = [
+            [
+                'role' => 'system',
+                'content' => 'You are an AI assistant for a workspace. Answer the user naturally and accurately. Use the conversation history when it is relevant.',
+            ],
         ];
+
+        foreach (array_slice($history, -6) as $message) {
+            $messages[] = [
+                'role' => $message['role'],
+                'content' => $message['content'],
+            ];
+        }
 
         $messages[] = [
             'role' => 'user',
