@@ -12,7 +12,9 @@ use App\Services\QdrantService;
 use App\Services\AIService;
 
 Route::get('/', function () {
-    return view('welcome');
+    return auth()->check()
+        ? redirect()->route('dashboard')
+        : redirect()->route('login');
 });
 
 Route::get('/dashboard', function () {

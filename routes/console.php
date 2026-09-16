@@ -1,7 +1,7 @@
 <?php
 
 use App\Models\Document;
-use App\Services\DocumentChunkService;
+use App\Jobs\ProcessDocumentJob;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Symfony\Component\Console\Command\Command;
@@ -10,7 +10,7 @@ Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
 })->purpose('Display an inspiring quote');
 
-Artisan::command('documents:reprocess {document?} {--user=} {--force}', function (?int $document = null, ?int $user = null, bool $force = false) {
+Artisan::command('documents:reprocess {document?} {--user=}', function (?int $document = null, ?int $user = null) {
     $query = Document::query();
 
     if ($document) {
@@ -32,7 +32,7 @@ Artisan::command('documents:reprocess {document?} {--user=} {--force}', function
     foreach ($documents as $documentModel) {
         try {
             $this->info('Reprocessing document #' . $documentModel->id . ' for user #' . $documentModel->user_id);
-            app(DocumentChunkService::class)->rebuildForDocument($documentModel);
+            ProcessDocumentJob::dispatchSync($documentModel, true);
             $count++;
         } catch (\Throwable $exception) {
             $this->error('Failed to reprocess document #' . $documentModel->id . ': ' . $exception->getMessage());

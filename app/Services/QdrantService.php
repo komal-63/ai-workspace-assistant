@@ -28,6 +28,33 @@ class QdrantService
             ]);
     }
 
+    public function ensurePayloadIndexes(): void
+    {
+        $indexes = ['document_id', 'user_id', 'chunk_id'];
+
+        foreach ($indexes as $field) {
+            try {
+                $this->client()
+                    ->post(
+                        $this->baseUrl . '/collections/document_chunks/index',
+                        [
+                            'field_name' => $field,
+                            'field_schema' => 'integer',
+                        ]
+                    )
+                    ->throw();
+            } catch (\Throwable $exception) {
+                $message = $exception->getMessage();
+                if (! str_contains($message, 'already exists') && ! str_contains($message, 'exists')) {
+                    Log::warning('Qdrant payload index creation skipped or failed.', [
+                        'field' => $field,
+                        'error' => $message,
+                    ]);
+                }
+            }
+        }
+    }
+
     public function store(
         int $chunkId,
         array $vector,

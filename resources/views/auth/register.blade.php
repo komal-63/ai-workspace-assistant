@@ -165,7 +165,7 @@
 
             height: 44px;
 
-            padding: 10px 13px;
+            padding: 10px 42px 10px 13px;
 
             border: 1px solid var(--line);
 
@@ -192,11 +192,14 @@
             border: 0;
             background: transparent;
             color: var(--ink-soft);
-            font-size: 12px;
-            font-weight: 600;
             cursor: pointer;
-            padding: 4px 6px;
+            padding: 6px;
             border-radius: 6px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
         }
 
         .password-toggle:hover,
@@ -204,6 +207,16 @@
             background: var(--brass-soft);
             color: var(--ink);
             outline: none;
+        }
+
+        .password-toggle svg {
+            width: 16px;
+            height: 16px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
         }
 
         .password-toggle[aria-pressed="true"] {
@@ -503,7 +516,10 @@
                                 aria-label="Show password"
                                 aria-pressed="false"
                             >
-                                Show
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
                             </button>
                         </div>
 
@@ -545,7 +561,10 @@
                                 aria-label="Show confirm password"
                                 aria-pressed="false"
                             >
-                                Show
+                                <svg viewBox="0 0 24 24" aria-hidden="true">
+                                    <path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path>
+                                    <circle cx="12" cy="12" r="3"></circle>
+                                </svg>
                             </button>
                         </div>
 
@@ -609,9 +628,9 @@
             toggleButton.addEventListener('click', function () {
                 const isHidden = targetField.type === 'password';
                 targetField.type = isHidden ? 'text' : 'password';
-                toggleButton.textContent = isHidden ? 'Hide' : 'Show';
                 toggleButton.setAttribute('aria-label', isHidden ? 'Hide password' : 'Show password');
                 toggleButton.setAttribute('aria-pressed', isHidden ? 'true' : 'false');
+                toggleButton.innerHTML = isHidden ? '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 3l18 18"></path><path d="M10.58 10.58A2 2 0 0 0 13.42 13.42"></path><path d="M9.88 5.08A10.23 10.23 0 0 1 12 5c6.5 0 10 7 10 7a16.84 16.84 0 0 1-4.24 5.24"></path><path d="M5.42 6.42A17.48 17.48 0 0 0 2 12s3.5 7 10 7a9.77 9.77 0 0 0 4.72-1.28"></path></svg>' : '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"></path><circle cx="12" cy="12" r="3"></circle></svg>';
             });
         });
     </script>

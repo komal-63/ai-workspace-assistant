@@ -15,6 +15,6 @@ class ConversationAuthorizationTest extends TestCase
     {
         $response = $this->get('/');
 
-        $response->assertStatus(200);
+        $response->assertRedirectToRoute('login');
     }
 }

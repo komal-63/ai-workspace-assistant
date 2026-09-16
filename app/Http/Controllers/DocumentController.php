@@ -4,7 +4,6 @@ namespace App\Http\Controllers;
 
 use App\Models\Document;
 use Illuminate\Http\Request;
-use App\Services\DocumentService;
 use App\Services\DocumentChunkService;
 use App\Services\QdrantService;
 use App\Jobs\ProcessDocumentJob;
@@ -12,16 +11,13 @@ use Illuminate\Support\Facades\Gate;
 
 class DocumentController extends Controller
 {
-    private DocumentService $documentService;
     private DocumentChunkService $chunkService;
     private QdrantService $qdrantService;
 
     public function __construct(
-        DocumentService $documentService,
         DocumentChunkService $chunkService,
         QdrantService $qdrantService
     ) {
-        $this->documentService = $documentService;
         $this->chunkService = $chunkService;
         $this->qdrantService = $qdrantService;
     }
@@ -51,15 +47,17 @@ class DocumentController extends Controller
 
         $path = $file->store('documents');
 
-        $fullPath = storage_path('app/private/' . $path);
+        $fullPath = \Storage::disk('local')->path($path);
 
-        $content = $this->documentService->extractText($fullPath);
+        $content = app(\App\Services\DocumentService::class)
+            ->extractText($fullPath, $file->getMimeType());
 
         $document = auth()->user()->documents()->create([
             'title' => $request->title,
             'file_path' => $path,
             'mime_type' => $file->getMimeType(),
             'content' => $content,
+            'status' => 'pending',
         ]);
 
         ProcessDocumentJob::dispatch($document);

@@ -3,8 +3,6 @@
 namespace App\Services;
 
 use App\Models\Document;
-use App\Models\DocumentChunk;
-use Illuminate\Support\Facades\Log;
 
 class DocumentChunkService
 {
@@ -18,12 +16,13 @@ class DocumentChunkService
     {
         $content = trim((string) $document->content);
 
+        $this->qdrantService->ensurePayloadIndexes();
+        $this->qdrantService->deleteByDocument($document->id);
+        $document->chunks()->delete();
+
         if ($content === '') {
             return;
         }
-
-        $document->chunks()->delete();
-        $this->qdrantService->deleteByDocument($document->id);
 
         $chunks = $this->buildChunks($content);
 
