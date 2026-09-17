@@ -287,6 +287,45 @@
     background: var(--ink);
     color: var(--paper);
 }
+
+    .chat-main {
+        position: relative;
+    }
+
+    .chat-loading-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(250, 247, 241, 0.72);
+    }
+
+    .chat-loading-content {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 10px;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .chat-loading-spinner {
+        width: 30px;
+        height: 30px;
+        border: 3px solid var(--brass-soft);
+        border-top-color: var(--brass);
+        border-radius: 50%;
+        animation: chat-loading-spin 0.8s linear infinite;
+    }
+
+    @keyframes chat-loading-spin {
+        to {
+            transform: rotate(360deg);
+        }
+    }
 </style>
     <div class="chat-page">
 
@@ -390,6 +429,20 @@
 
                 {{-- Main Chat Area --}}
                 <main class="col-md-9 col-lg-9 chat-main">
+
+                    <div
+                        class="chat-loading-overlay"
+                        id="chatLoadingOverlay"
+                        role="status"
+                        aria-live="polite"
+                        aria-label="Generating answer"
+                        hidden
+                    >
+                        <div class="chat-loading-content">
+                            <span class="chat-loading-spinner" aria-hidden="true"></span>
+                            <span>Generating answer...</span>
+                        </div>
+                    </div>
 
                     {{-- Chat Header --}}
                     <div class="chat-header">
@@ -534,7 +587,7 @@
                                         name="content"
                                         id="messageInput"
                                         rows="1"
-                                        placeholder="Ask something..."
+                                        placeholder="Ask anything..."
                                         class="form-control message-input @error('content') input-error @enderror"
                                     >{{ old('content') }}</textarea>
 
@@ -1035,6 +1088,8 @@
     const messageForm = document.getElementById('messageForm');
     const messagesContainer = document.getElementById('messagesContainer');
     const sendButton = document.getElementById('sendButton');
+    const chatLoadingOverlay = document.getElementById('chatLoadingOverlay');
+    let isSubmitting = false;
 
     // Auto scroll to latest message
     if (messagesContainer) {
@@ -1093,11 +1148,14 @@
 
         messageForm.addEventListener('submit', function (event) {
 
-            if (messageInput.value.trim().length === 0) {
+            if (isSubmitting || messageInput.value.trim().length === 0) {
                 event.preventDefault();
                 return;
             }
 
+            isSubmitting = true;
+            chatLoadingOverlay.hidden = false;
+            messageForm.setAttribute('aria-busy', 'true');
             sendButton.disabled = true;
             sendButton.innerHTML = 'Sending...';
         });

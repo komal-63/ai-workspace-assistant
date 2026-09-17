@@ -7,6 +7,8 @@ use Illuminate\Support\Facades\Http;
 
 class QdrantService
 {
+    private static bool $payloadIndexesEnsured = false;
+
     private string $baseUrl;
     private ?string $apiKey;
 
@@ -30,6 +32,10 @@ class QdrantService
 
     public function ensurePayloadIndexes(): void
     {
+        if (self::$payloadIndexesEnsured) {
+            return;
+        }
+
         $indexes = ['document_id', 'user_id', 'chunk_id'];
 
         foreach ($indexes as $field) {
@@ -53,6 +59,8 @@ class QdrantService
                 }
             }
         }
+
+        self::$payloadIndexesEnsured = true;
     }
 
     public function store(
