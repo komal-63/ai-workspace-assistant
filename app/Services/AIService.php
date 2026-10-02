@@ -48,9 +48,135 @@ class AIService
         }
     }
 
+    private function consumeStream(string $rawStream, callable $onChunk): string
+    {
+        $buffer = '';
+        $fullContent = '';
+
+        $lines = preg_split('/\r\n|\n|\r/', $rawStream);
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+
+            if ($line === '' || ! str_starts_with($line, 'data:')) {
+                continue;
+            }
+
+            $payload = trim(substr($line, 5));
+
+            if ($payload === '' || $payload === '[DONE]') {
+                continue;
+            }
+
+            $decoded = json_decode($payload, true);
+
+            if (! is_array($decoded)) {
+                continue;
+            }
+
+            $delta = $decoded['choices'][0]['delta'] ?? [];
+            $content = $delta['content'] ?? null;
+
+            if (is_string($content) && $content !== '') {
+                $fullContent .= $content;
+                $onChunk($content);
+            }
+        }
+
+        return $fullContent;
+    }
+
+    private function streamRequest(array $messages, callable $onChunk): string
+    {
+        try {
+            $response = Http::withToken(config('services.groq.api_key'))
+                ->timeout(60)
+                ->withOptions(['stream' => true])
+                ->post('https://api.groq.com/openai/v1/chat/completions', [
+                    'model' => config('services.groq.model'),
+                    'messages' => $messages,
+                    'temperature' => 0,
+                    'stream' => true,
+                ]);
+
+            $response->throw();
+
+            $psrResponse = $response->toPsrResponse();
+            $stream = $psrResponse->getBody();
+            $rawBuffer = '';
+            $fullContent = '';
+
+            while (! $stream->eof()) {
+                $chunk = $stream->read(8192);
+
+                if ($chunk === '') {
+                    continue;
+                }
+
+                $rawBuffer .= $chunk;
+
+                $lines = preg_split('/\r\n|\n|\r/', $rawBuffer);
+                $rawBuffer = array_pop($lines) ?? '';
+
+                foreach ($lines as $line) {
+                    $line = trim($line);
+
+                    if ($line === '' || ! str_starts_with($line, 'data:')) {
+                        continue;
+                    }
+
+                    $payload = trim(substr($line, 5));
+
+                    if ($payload === '' || $payload === '[DONE]') {
+                        continue;
+                    }
+
+                    $decoded = json_decode($payload, true);
+
+                    if (! is_array($decoded)) {
+                        continue;
+                    }
+
+                    $delta = $decoded['choices'][0]['delta'] ?? [];
+                    $content = $delta['content'] ?? null;
+
+                    if (is_string($content) && $content !== '') {
+                        $fullContent .= $content;
+                        $onChunk($content);
+                    }
+                }
+            }
+
+            if ($rawBuffer !== '') {
+                $fullContent .= $this->consumeStream($rawBuffer, $onChunk);
+            }
+
+            if (trim($fullContent) === '') {
+                throw new \RuntimeException('Groq stream returned an empty response.');
+            }
+
+            return $fullContent;
+        } catch (\Throwable $exception) {
+            Log::error('Groq streaming request failed.', [
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw new AIServiceException(
+                'AI service is currently unavailable.',
+                0,
+                $exception
+            );
+        }
+    }
+
     public function generateResponse(array $messages): string
     {
         return $this->request($messages);
+    }
+
+    public function streamResponse(array $messages, callable $onChunk): string
+    {
+        return $this->streamRequest($messages, $onChunk);
     }
 
     public function generateSummary(string $existingSummary, array $messages): string
@@ -197,6 +323,80 @@ class AIService
         ];
 
         return $this->request($messages);
+    }
+
+    public function streamGeneralAnswer(string $question, array $history = [], callable $onChunk): string
+    {
+        $messages = [
+            [
+                'role' => 'system',
+                'content' => 'You are an AI assistant for a workspace. Answer the user naturally and accurately. Use the conversation history when it is relevant.',
+            ],
+        ];
+
+        foreach (array_slice($history, -6) as $message) {
+            $messages[] = [
+                'role' => $message['role'],
+                'content' => $message['content'],
+            ];
+        }
+
+        $messages[] = [
+            'role' => 'user',
+            'content' => $question,
+        ];
+
+        return $this->streamResponse($messages, $onChunk);
+    }
+
+    public function streamGroundedAnswer(
+        string $question,
+        array $context,
+        array $history = [],
+        callable $onChunk
+    ): string
+    {
+        $contextText = collect($context)
+            ->take(5)
+            ->map(fn ($item) => $item['payload']['content'] ?? '')
+            ->filter()
+            ->implode("\n\n");
+
+        $historyText = collect($history)
+            ->take(-6)
+            ->map(function ($message) {
+                return $message['role'] . ': ' . $message['content'];
+            })
+            ->implode("\n");
+
+        $prompt = <<<PROMPT
+You are a grounded AI assistant for a document-based workspace.
+
+Answer the user using only the provided document context.
+Use conversation history only to interpret follow-up references.
+
+The response should be concise, natural, and directly answer the question.
+
+Conversation history:
+{$historyText}
+
+Current question:
+{$question}
+
+Document context:
+{$contextText}
+PROMPT;
+
+        return $this->streamResponse([
+            [
+                'role' => 'system',
+                'content' => 'You are a precise grounded document-answering assistant. Answer using only the document context provided by the user.',
+            ],
+            [
+                'role' => 'user',
+                'content' => $prompt,
+            ],
+        ], $onChunk);
     }
 
     public function generateNotFoundAnswer(string $question): string

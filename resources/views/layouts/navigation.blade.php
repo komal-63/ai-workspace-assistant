@@ -4,7 +4,8 @@
 
         {{-- Logo / Brand --}}
         <a href="{{ route('dashboard') }}" class="nav-brand">
-            AI Workspace
+            <img src="{{ asset('images/ai-workspace-icon-transparent.png') }}" alt="AI Workspace Assistant logo" class="nav-brand-logo">
+            <span>AI Workspace</span>
         </a>
 
         {{-- Desktop Navigation --}}
@@ -188,6 +189,9 @@
 
     .nav-brand {
 
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
         color: var(--ink);
         font-family: var(--font-display);
         font-size: 20px;
@@ -195,6 +199,14 @@
         text-decoration: none;
 
         white-space: nowrap;
+    }
+
+    .nav-brand-logo {
+        width: 30px;
+        height: 30px;
+        object-fit: contain;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.02);
     }
 
     .nav-brand:hover {

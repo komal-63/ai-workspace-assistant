@@ -409,6 +409,12 @@
 
             <div class="brand">
 
+                <img
+                    src="{{ asset('images/ai-workspace-icon-transparent.png') }}"
+                    alt="AI Workspace Assistant logo"
+                    style="width: 180px; height: auto; margin: 0 auto 18px; display: block; filter: drop-shadow(0 16px 32px rgba(64, 97, 255, 0.18));"
+                >
+
                 <div class="brand-eyebrow">
                     AI Workspace
                 </div>
@@ -418,8 +424,7 @@
                 </h1>
 
                 <p class="brand-description">
-                    Your document-grounded AI workspace for
-                    conversations, knowledge and productivity.
+                    Your intelligent workspace for documents and AI.
                 </p>
 
             </div>

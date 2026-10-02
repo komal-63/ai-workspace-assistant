@@ -14,7 +14,7 @@ use App\Services\AIService;
 Route::get('/', function () {
     return auth()->check()
         ? redirect()->route('dashboard')
-        : redirect()->route('login');
+        : view('welcome');
 });
 
 Route::get('/dashboard', function () {
@@ -53,6 +53,9 @@ Route::get('/conversations/{conversation}', [MessageController::class, 'index'])
     ->name('messages.index');
 Route::post('/conversations/{conversation}/messages', [MessageController::class, 'store'])
     ->name('messages.store');
+Route::post('/conversations/{conversation}/messages/stream', [MessageController::class, 'stream'])
+    ->middleware('auth')
+    ->name('messages.stream');
 
 Route::middleware('auth')->group(function () {
 

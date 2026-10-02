@@ -576,6 +576,7 @@
                             method="POST"
                             action="{{ route('messages.store', $conversation) }}"
                             id="messageForm"
+                            data-stream-url="{{ route('messages.stream', $conversation) }}"
                         >
                             @csrf
 
@@ -1143,21 +1144,231 @@
         });
     }
 
+    const streamUrl = messageForm ? messageForm.dataset.streamUrl : null;
+
+    function addUserMessage(content) {
+        if (!messagesContainer) {
+            return;
+        }
+
+        const row = document.createElement('div');
+        row.className = 'message-row user-row';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message-wrapper';
+
+        const message = document.createElement('div');
+        message.className = 'user-message';
+        message.textContent = content;
+
+        const label = document.createElement('div');
+        label.className = 'message-label user-label';
+        label.textContent = 'You';
+
+        wrapper.appendChild(message);
+        wrapper.appendChild(label);
+        row.appendChild(wrapper);
+        messagesContainer.appendChild(row);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    function createAssistantMessage() {
+        const row = document.createElement('div');
+        row.className = 'message-row ai-row';
+
+        const avatar = document.createElement('div');
+        avatar.className = 'ai-avatar';
+        avatar.textContent = 'AI';
+
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message-wrapper';
+
+        const message = document.createElement('div');
+        message.className = 'ai-message';
+        message.setAttribute('data-streaming-assistant', 'true');
+
+        const source = document.createElement('div');
+        source.className = 'source-container';
+        source.innerHTML = '<span class="source-badge source-ai"><i></i>General knowledge</span>';
+
+        wrapper.appendChild(message);
+        wrapper.appendChild(source);
+        row.appendChild(avatar);
+        row.appendChild(wrapper);
+        messagesContainer.appendChild(row);
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+        return { row, message, source };
+    }
+
+    function setAssistantSource(element, source, documentTitle = null) {
+        if (!element) {
+            return;
+        }
+
+        const badge = document.createElement('span');
+
+        if (source === 'document') {
+            badge.className = 'source-badge source-document';
+            badge.innerHTML = '<i></i>' + (documentTitle ? 'Based on ' + documentTitle : 'Based on an uploaded document');
+        } else if (source === 'not_found') {
+            badge.className = 'source-badge source-not-found';
+            badge.innerHTML = '<i></i>Not found in your documents';
+        } else {
+            badge.className = 'source-badge source-ai';
+            badge.innerHTML = '<i></i>General knowledge';
+        }
+
+        element.replaceChildren(badge);
+    }
+
+    function replaceLoadingState(isLoading) {
+        if (!chatLoadingOverlay) {
+            return;
+        }
+
+        chatLoadingOverlay.hidden = !isLoading;
+    }
+
     // Loading state
     if (messageForm) {
 
-        messageForm.addEventListener('submit', function (event) {
-
-            if (isSubmitting || messageInput.value.trim().length === 0) {
-                event.preventDefault();
+        messageForm.addEventListener('submit', async function (event) {
+            if (!streamUrl) {
+                if (isSubmitting || messageInput.value.trim().length === 0) {
+                    event.preventDefault();
+                }
                 return;
             }
 
+            event.preventDefault();
+
+            if (isSubmitting || messageInput.value.trim().length === 0) {
+                return;
+            }
+
+            const question = messageInput.value.trim();
+            addUserMessage(question);
+            const assistant = createAssistantMessage();
+            const assistantMessage = assistant.message;
+            const sourceNode = assistant.source;
+
             isSubmitting = true;
-            chatLoadingOverlay.hidden = false;
+            replaceLoadingState(true);
             messageForm.setAttribute('aria-busy', 'true');
             sendButton.disabled = true;
             sendButton.innerHTML = 'Sending...';
+            messageInput.value = '';
+            updateSendButton();
+
+            try {
+                const csrfToken = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || document.querySelector('input[name="_token"]')?.value;
+                const response = await fetch(streamUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken || '',
+                        'Accept': 'text/event-stream',
+                    },
+                    credentials: 'same-origin',
+                    body: JSON.stringify({ content: question }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Chat request failed');
+                }
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let startedStreaming = false;
+                let lastSource = 'ai';
+
+                while (true) {
+                    const { value, done } = await reader.read();
+
+                    if (done) {
+                        break;
+                    }
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    const segments = buffer.split('\n\n');
+                    buffer = segments.pop() || '';
+
+                    for (const segment of segments) {
+                        const lines = segment.split('\n');
+                        const eventLine = lines.find((line) => line.startsWith('event:'));
+                        const dataLine = lines.find((line) => line.startsWith('data:'));
+
+                        if (!dataLine) {
+                            continue;
+                        }
+
+                        const eventName = eventLine ? eventLine.replace('event:', '').trim() : 'message';
+                        const payload = JSON.parse(dataLine.replace('data:', '').trim());
+
+                        if (eventName === 'meta') {
+                            lastSource = payload.source || lastSource;
+                            if (payload.source === 'document' && payload.document_id) {
+                                setAssistantSource(sourceNode, 'document', 'an uploaded document');
+                            } else {
+                                setAssistantSource(sourceNode, payload.source || 'ai');
+                            }
+                            continue;
+                        }
+
+                        if (eventName === 'chunk') {
+                            const text = payload.text || '';
+                            if (text) {
+                                if (!startedStreaming) {
+                                    replaceLoadingState(false);
+                                    startedStreaming = true;
+                                }
+
+                                const textNode = document.createTextNode(text);
+                                assistantMessage.appendChild(textNode);
+                                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                            }
+                            continue;
+                        }
+
+                        if (eventName === 'error') {
+                            assistantMessage.textContent = (payload.message || 'The response was interrupted before completion.');
+                            replaceLoadingState(false);
+                            setAssistantSource(sourceNode, 'ai');
+                            break;
+                        }
+
+                        if (eventName === 'done') {
+                            replaceLoadingState(false);
+                            break;
+                        }
+                    }
+
+                    if (lastSource === 'not_found') {
+                        setAssistantSource(sourceNode, 'not_found');
+                    }
+
+                    if (messagesContainer) {
+                        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                    }
+                }
+            } catch (error) {
+                replaceLoadingState(false);
+                const messageText = assistantMessage && assistantMessage.textContent
+                    ? assistantMessage.textContent
+                    : 'The assistant could not finish the response.';
+
+                assistantMessage.textContent = messageText || 'The assistant could not finish the response.';
+                setAssistantSource(sourceNode, 'ai');
+            } finally {
+                isSubmitting = false;
+                messageForm.setAttribute('aria-busy', 'false');
+                sendButton.disabled = messageInput.value.trim().length === 0;
+                sendButton.innerHTML = 'Send';
+                replaceLoadingState(false);
+            }
         });
     }
 </script>
